@@ -1,11 +1,35 @@
 # januaport-clients
 
-Inbound: KI-Clients, Tunnel-Profile, SSO-Broker-Rezepte, Zeitplan-Laeufer fuer JanuaPort (Apache 2.0)
+**English** · [Deutsch](README.de.md)
 
-**Status:** privat bis zum GoLive von JanuaPort (Flip in der GoLive-Checkliste JanuaPort/januaport#788). Teil des Open-Core-Pivots (JanuaPort/januaport#773).
+Inbound for JanuaPort: how AI clients and identity providers connect to the gateway.
 
-**Lizenz:** Apache License 2.0 (`LICENSE`), Copyright 2026 JanuaPort GmbH (`NOTICE`). Beitraege: `CONTRIBUTING.md`.
+JanuaPort is a self-hosted MCP gateway. It connects AI assistants to a company's existing systems with
+fine-grained permissions and records access in an append-only audit log. The core of JanuaPort is
+proprietary software of JanuaPort GmbH and is not part of this repository. This repository is one of the
+open edges around it.
 
-**Zustaendig:** Lead + AUTH-IN (#789, #783) — Ownership je Unterordner; Inhalte kommen mit den genannten Tickets.
+- **License:** Apache License 2.0 ([`LICENSE`](LICENSE), [`NOTICE`](NOTICE))
+- **Links:** [januaport.ai](https://januaport.ai) · [Security policy](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+- **Language:** The guides in the subfolders are currently written in German.
 
-Keine Kundendaten, keine Schluessel, keine Betreiberwerte in diesem Repository.
+No customer data, no keys, no operator values in this repository.
+
+---
+
+## Sign-in: OpenID Connect
+
+JanuaPort accepts the sign-in of its users from an OpenID Connect provider and only validates the token;
+it does not run its own identity provider. Microsoft Entra ID is verified today. Recipes for other
+providers, placed in front of JanuaPort as a broker, are planned and will be published here, openly.
+
+## Contents
+
+Status labels: **Built** · **In progress** · **Planned**. Each entry says what exactly has been verified.
+
+| Folder | What it covers | Status |
+|---|---|---|
+| [`claude-code-desktop/`](claude-code-desktop/) | Connecting Claude Code to JanuaPort over Streamable HTTP with a personal token, via `claude mcp add` or `.mcp.json`. Plus the limits for Claude Desktop and a skill for building use cases. | **Built.** Claude Code with a bearer token is verified against a real installation on both ways (23 September 2026). The skill and Claude Desktop are not verified. |
+| [`sso-broker/entra/`](sso-broker/entra/) | Setup script for Microsoft Entra ID with two app registrations, for ChatGPT and claude.ai. | **Built.** Verified with ChatGPT against a real tenant; the script ran end to end (the sign-in line itself was not part of that run). claude.ai is not verified yet. |
+| further broker recipes (e.g. Keycloak, Dex, ADFS) | OpenID Connect providers other than Entra, in front of JanuaPort. | **Planned.** |
+| tunnel profiles, scheduled runners | Client-side profiles for connecting without an open port, and runners that call JanuaPort on a schedule. | **Planned.** |
