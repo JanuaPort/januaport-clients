@@ -7,8 +7,8 @@ dabei nur **Resource Server**: Es prüft das Entra-Token, die Anmeldung läuft
 zwischen KI-Client und Entra.
 
 **Status:** siehe [unten](#status). Kurz: der Aufbau ist mit ChatGPT gegen
-einen echten Mandanten belegt, claude.ai mit der Client-Registrierung und das
-Skript am Stück noch nicht.
+einen echten Mandanten belegt, das Skript am Stück gelaufen; claude.ai mit der
+Client-Registrierung ist noch nicht belegt.
 
 ## Warum zwei Registrierungen
 
@@ -61,6 +61,15 @@ die Rückruf-URI der Oberfläche (`https://<adresse>/me/callback`) an der
 Ressource ein und erteilt deren Einwilligung — leer lassen, wenn sich an der
 Anlage niemand im Browser anmeldet. Die Oberflächen-Adresse ist **nicht** die
 MCP-Adresse.
+
+**Anmeldung:** Das Skript meldet sich über Microsoft Graph PowerShell an. Unter
+Windows öffnet das ein Anmeldefenster des Betriebssystems; aus einem Terminal
+ohne sichtbares Fenster (eingebettete Terminals, Remote-Sitzungen) scheitert das
+mit „A window handle must be configured". Dann `-UseDeviceCode` anhängen: das
+Skript nennt einen Code für `https://login.microsoft.com/device`. Der Code gilt
+nur rund **zwei Minuten** — vorher die Seite öffnen. Beim ersten Einsatz im
+Mandanten fragt Microsoft Graph PowerShell zusätzlich nach der Zustimmung zu
+den eigenen Berechtigungen.
 
 Das Skript gibt am Ende nur öffentliche Bezeichner aus: Verzeichnis-ID, die
 beiden Anwendungs-IDs und die Werte für die Anlage.
@@ -193,4 +202,4 @@ zwei Stunden nach.
 |---|---|
 | Aufbau mit zwei Registrierungen, **ChatGPT** | **belegt am 21.09.2026** gegen einen echten Mandanten: stille Token-Erneuerung (Erfolg im nicht-interaktiven Protokoll) und Werkzeugaufruf 2 h 49 min nach der Anmeldung, ohne neu zu verbinden; vorher mit einer Registrierung reproduzierbar `AADSTS90009` |
 | Aufbau mit zwei Registrierungen, **claude.ai** | **ungeprüft** — mit einer Registrierung scheiterte ein zweiter Client, vermutlich claude.ai, im selben `AADSTS90009`-Muster; der Beleg mit der Client-Registrierung steht aus |
-| Das Skript | die Graph-Aufrufe entsprechen denen, mit denen die belegte Client-Registrierung angelegt wurde; deren Manifest und Einwilligungen am 23.09.2026 gegen die Prüftabelle oben gelesen: deckungsgleich. **Am Stück ist das Skript noch nicht gelaufen** — beim ersten Einsatz die Manifeste gegen die Tabelle lesen |
+| Das Skript | die Graph-Aufrufe entsprechen denen, mit denen die belegte Client-Registrierung angelegt wurde; deren Manifest und Einwilligungen am 23.09.2026 gegen die Prüftabelle oben gelesen: deckungsgleich. **Am Stück gelaufen am 23.09.2026** (PowerShell 7.6, Microsoft Graph PowerShell 2.40, echter Mandant, Wegwerf-Registrierungen mit Sicht und Oberflächen-Adresse): beide Manifeste und alle vier Einwilligungen deckungsgleich mit der Prüftabelle. Die Anmeldezeile lief dabei nicht mit — angemeldet wurde vorab mit einem Token der Azure CLI; `-UseDeviceCode` ist bis zur Code-Anzeige belegt |
