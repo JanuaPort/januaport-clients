@@ -8,7 +8,9 @@ Tunnel auch nicht.
 
 Claude Desktop ist ein anderer Fall, siehe [Grenzen](#grenzen).
 
-**Status:** siehe [unten](#status).
+**Status:** siehe [unten](#status). Kurz: Claude Code mit Bearer-Token ist
+gegen eine echte Anlage belegt, auf beiden Wegen (`claude mcp add` und
+`.mcp.json`). Der Skill und Claude Desktop sind es nicht.
 
 ## Voraussetzungen
 
@@ -137,9 +139,14 @@ Fehlerbilder:
 
 | Weg | Stand |
 |---|---|
-| Claude Code, Bearer-Token, `claude mcp add` | **ungetestet**, Beleg folgt |
-| Claude Code, `.mcp.json` mit Umgebungsvariablen | **ungetestet**, Beleg folgt |
+| Claude Code, Bearer-Token, `claude mcp add` | **belegt am 23.09.2026**: `claude mcp get` meldet „Connected" |
+| Claude Code, `.mcp.json` mit Umgebungsvariablen | **belegt am 23.09.2026**: `tools/list`, `ping` und ein Lesewerkzeug einer Integration |
 | Skill `januaport-bauer` | **ungetestet** |
 | Claude Desktop, eigener Konnektor | siehe claude.ai-Weg |
 | Claude Desktop, stdio-Brücke | nicht belegt, nicht empfohlen |
 | Claude Code, SSO mit Client-ID | nicht belegt |
+
+Der Beleg lief mit Claude Code 2.1.280 gegen eine JanuaPort-Anlage 0.62.0 über
+ein privates Tailnet, also ohne offenen Web-Port, mit einem befristeten Token,
+der danach widerrufen wurde. Im Fehlerbild „Browser-Login" steht, was die Doku
+von Claude Code beschreibt; beobachtet ist es hier nicht.
