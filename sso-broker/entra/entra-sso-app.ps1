@@ -18,13 +18,14 @@ param(
   [string]   $ClientDisplayName   = "JanuaPort KI-Clients",
   [string[]] $ClientRedirectUris  = @(),                       # Rückruf-URIs der KI-CLIENTS, z. B. https://chatgpt.com/connector/oauth/<id>
   [string]   $UiHost              = "",                        # Adresse der OBERFLÄCHE — z. B. jnpt.tailnet.ts.net; leer = kein Browser-Login
-  [string[]] $Views                = @()                       # z. B. buchhaltung -> https://<host>/mcp/v/buchhaltung
+  [string[]] $Views                = @(),                      # z. B. buchhaltung -> https://<host>/mcp/v/buchhaltung
+  [switch]   $UseDeviceCode                                    # Anmeldung per Code statt Fenster (Terminal ohne sichtbares Fenster, s. README)
 )
 # Ein halb angelegter Mandant ist schlimmer als ein abgebrochener Lauf: ohne Stop
 # liefen die Folgeschritte mit leeren Objekten weiter.
 $ErrorActionPreference = "Stop"
 
-Connect-MgGraph -Scopes "Application.ReadWrite.All","DelegatedPermissionGrant.ReadWrite.All" -NoWelcome
+Connect-MgGraph -Scopes "Application.ReadWrite.All","DelegatedPermissionGrant.ReadWrite.All" -NoWelcome -UseDeviceCode:$UseDeviceCode
 
 $scopeId    = [guid]::NewGuid().Guid
 $uris       = @("https://$BoxHost/mcp") + ($Views | ForEach-Object { "https://$BoxHost/mcp/v/$_" })
