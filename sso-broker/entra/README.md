@@ -193,4 +193,4 @@ zwei Stunden nach.
 |---|---|
 | Aufbau mit zwei Registrierungen, **ChatGPT** | **belegt am 21.09.2026** gegen einen echten Mandanten: stille Token-Erneuerung (Erfolg im nicht-interaktiven Protokoll) und Werkzeugaufruf 2 h 49 min nach der Anmeldung, ohne neu zu verbinden; vorher mit einer Registrierung reproduzierbar `AADSTS90009` |
 | Aufbau mit zwei Registrierungen, **claude.ai** | **ungeprüft** — mit einer Registrierung scheiterte ein zweiter Client, vermutlich claude.ai, im selben `AADSTS90009`-Muster; der Beleg mit der Client-Registrierung steht aus |
-| Das Skript | die Graph-Aufrufe entsprechen denen, mit denen die belegte Client-Registrierung angelegt wurde; **am Stück ist das Skript noch nicht gelaufen**. Beim ersten Einsatz die Manifeste gegen die Tabelle oben lesen |
+| Das Skript | die Graph-Aufrufe entsprechen denen, mit denen die belegte Client-Registrierung angelegt wurde; deren Manifest und Einwilligungen am 23.09.2026 gegen die Prüftabelle oben gelesen: deckungsgleich. **Am Stück ist das Skript noch nicht gelaufen** — beim ersten Einsatz die Manifeste gegen die Tabelle lesen |
