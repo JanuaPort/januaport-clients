@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "januaport": {
+      "type": "http",
+      "url": "${JNPT_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${JNPT_TOKEN}"
+      }
+    }
+  }
+}
