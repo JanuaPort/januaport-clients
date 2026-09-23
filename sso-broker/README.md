@@ -6,7 +6,7 @@ Voraussetzungen, Schritten, Prüfliste, Grenzen und Beleg-Status.
 
 | Ordner | Anbieter | Status |
 |---|---|---|
-| [`entra/`](entra/) | Microsoft Entra ID — Einrichtungsskript für ChatGPT und claude.ai | Skript und ChatGPT belegt, claude.ai ungeprüft (siehe dort) |
+| [`entra/`](entra/) | Microsoft Entra ID — Einrichtungsskript für ChatGPT und claude.ai | Skript am Stück und ChatGPT belegt (die Anmeldezeile selbst lief beim Beleg nicht mit), claude.ai ungeprüft (siehe dort) |
 
 Broker-Rezepte für andere Anbieter (Keycloak, Dex, ADFS vor JanuaPort) folgen;
 bis dahin ist nur Microsoft Entra belegt.
