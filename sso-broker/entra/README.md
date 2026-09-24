@@ -7,8 +7,8 @@ dabei nur **Resource Server**: Es prüft das Entra-Token, die Anmeldung läuft
 zwischen KI-Client und Entra.
 
 **Status:** siehe [unten](#status). Kurz: der Aufbau ist mit ChatGPT gegen
-einen echten Mandanten belegt, das Skript am Stück gelaufen; claude.ai mit der
-Client-Registrierung ist noch nicht belegt.
+einen echten Mandanten belegt, ebenso claude.ai mit der Client-Registrierung
+(24.09.2026, ohne Blick ins Entra-Protokoll); das Skript ist am Stück gelaufen.
 
 ## Warum zwei Registrierungen
 
@@ -201,5 +201,5 @@ zwei Stunden nach.
 | Was | Stand |
 |---|---|
 | Aufbau mit zwei Registrierungen, **ChatGPT** | **belegt am 21.09.2026** gegen einen echten Mandanten: stille Token-Erneuerung (Erfolg im nicht-interaktiven Protokoll) und Werkzeugaufruf 2 h 49 min nach der Anmeldung, ohne neu zu verbinden; vorher mit einer Registrierung reproduzierbar `AADSTS90009` |
-| Aufbau mit zwei Registrierungen, **claude.ai** | **ungeprüft** — mit einer Registrierung scheiterte ein zweiter Client, vermutlich claude.ai, im selben `AADSTS90009`-Muster; der Beleg mit der Client-Registrierung steht aus |
+| Aufbau mit zwei Registrierungen, **claude.ai** | **belegt am 24.09.2026** gegen einen echten Mandanten: Werkzeugaufruf 2 h 49 min nach der Anmeldung, über einen Neustart der Anlage hinweg, ohne neu zu verbinden und ohne dass claude.ai eine Anmeldung verlangte. Kein 401 und kein `invalid_token` im Zugriffsprotokoll der Anlage. Der Mandant hat keine eigene Token-Lebensdauer (Zugangs-Token 60–90 Minuten), die Verbindung wurde also still erneuert. Das nicht interaktive Anmeldeprotokoll von Entra ist dabei **nicht eingesehen** (Anleitung: [`../../claude-ai/`](../../claude-ai/README.md)) |
 | Das Skript | die Graph-Aufrufe entsprechen denen, mit denen die belegte Client-Registrierung angelegt wurde; deren Manifest und Einwilligungen am 23.09.2026 gegen die Prüftabelle oben gelesen: deckungsgleich. **Am Stück gelaufen am 23.09.2026** (PowerShell 7.6, Microsoft Graph PowerShell 2.40, echter Mandant, Wegwerf-Registrierungen mit Sicht und Oberflächen-Adresse): beide Manifeste und alle vier Einwilligungen deckungsgleich mit der Prüftabelle. Die Anmeldezeile lief dabei nicht mit — angemeldet wurde vorab mit einem Token der Azure CLI; `-UseDeviceCode` ist bis zur Code-Anzeige belegt |
