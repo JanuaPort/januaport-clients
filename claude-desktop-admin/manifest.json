@@ -1,0 +1,59 @@
+{
+  "manifest_version": "0.3",
+  "name": "januaport-admin",
+  "display_name": "JanuaPort Admin",
+  "version": "0.1.0",
+  "description": "Administer a JanuaPort installation from Claude Desktop over its admin MCP, in the local network only.",
+  "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token. TLS verification is always on; an internal root CA can be added as a file. The tool list comes from the gateway itself.",
+  "author": {
+    "name": "JanuaPort GmbH",
+    "url": "https://januaport.ai"
+  },
+  "homepage": "https://januaport.ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JanuaPort/januaport-clients"
+  },
+  "license": "Apache-2.0",
+  "keywords": ["januaport", "mcp", "gateway", "admin"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {
+        "JNPT_ADMIN_ADDRESS": "${user_config.address}",
+        "JNPT_ADMIN_TOKEN": "${user_config.admin_token}",
+        "NODE_EXTRA_CA_CERTS": "${user_config.ca_certificate}"
+      }
+    }
+  },
+  "user_config": {
+    "address": {
+      "type": "string",
+      "title": "Address of the installation",
+      "description": "Base address in the local network, https only, without a path, e.g. https://box.local. The bridge appends /admin/mcp itself.",
+      "required": true
+    },
+    "admin_token": {
+      "type": "string",
+      "title": "Admin token",
+      "description": "A dedicated admin token for this installation with an expiry date: jnpt admin-token create --label claude-desktop-<name> --expires 720h",
+      "sensitive": true,
+      "required": true
+    },
+    "ca_certificate": {
+      "type": "file",
+      "title": "Root CA of the installation (PEM)",
+      "description": "Only needed if the installation uses an internal CA, e.g. Caddy with tls internal. Leave empty for a publicly trusted certificate.",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}
