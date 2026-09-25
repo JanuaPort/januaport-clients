@@ -36,3 +36,29 @@ for (const s of samples) {
     assert.equal(unpinned(s.line).length === 0, s.ok);
   });
 }
+
+// SEC-Auflage A1: Der Release-Job hält contents:write und id-token:write; ein
+// Install-Skript einer Abhängigkeit könnte das Bundle verändern, und die
+// Attestation würde es bezeugen. Deshalb jedes npm ci mit --ignore-scripts.
+function npmCiWithoutIgnoreScripts(text) {
+  return text.split(/\r?\n/).filter((l) => /\bnpm ci\b/.test(l) && !/--ignore-scripts\b/.test(l));
+}
+
+test('Release-Workflow: jedes npm ci mit --ignore-scripts', () => {
+  const text = readFileSync(workflow, 'utf8');
+  assert.ok(text.split(/\r?\n/).filter((l) => /\bnpm ci\b/.test(l)).length >= 2, 'weniger als zwei npm ci gefunden');
+  assert.deepEqual(npmCiWithoutIgnoreScripts(text), []);
+});
+
+const ciSamples = [
+  { name: 'npm ci ohne Schalter', line: '          npm ci', ok: false },
+  { name: 'npm ci --omit=dev ohne Schalter', line: '          npm ci --omit=dev', ok: false },
+  { name: 'npm ci --ignore-scripts', line: '          npm ci --ignore-scripts', ok: true },
+  { name: 'npm ci --omit=dev --ignore-scripts', line: '          npm ci --omit=dev --ignore-scripts', ok: true },
+];
+
+for (const s of ciSamples) {
+  test(`Gegenprobe npm-ci-Prüfung: ${s.name}`, () => {
+    assert.equal(npmCiWithoutIgnoreScripts(s.line).length === 0, s.ok);
+  });
+}
