@@ -1,0 +1,93 @@
+# Release des MCP-Bundles „JanuaPort Admin" (JanuaPort/januaport#888, SEC K4).
+# Das .mcpb entsteht nur hier, nie von Hand. Auslöser ist ein annotierter Tag
+# claude-desktop-admin/vX.Y.Z; er muss zur Version in manifest.json passen.
+# Workflow-Log und Release-Notiz nennen denselben SHA-256; dazu eine
+# Herkunfts-Attestation (prüfbar mit gh attestation verify).
+name: claude-desktop-admin-release
+
+on:
+  push:
+    tags:
+      - 'claude-desktop-admin/v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Release anlegen
+      id-token: write # Attestation
+      attestations: write
+    defaults:
+      run:
+        working-directory: claude-desktop-admin
+    env:
+      MCPB_VERSION: 2.1.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tag gegen manifest.json prüfen
+        run: |
+          tag_version="${GITHUB_REF_NAME#claude-desktop-admin/v}"
+          manifest_version="$(node -p "require('./manifest.json').version")"
+          package_version="$(node -p "require('./package.json').version")"
+          if [ "$tag_version" != "$manifest_version" ] || [ "$tag_version" != "$package_version" ]; then
+            echo "Tag ${tag_version}, manifest.json ${manifest_version}, package.json ${package_version} — nicht gleich." >&2
+            exit 1
+          fi
+          echo "VERSION=${tag_version}" >> "$GITHUB_ENV"
+
+      - name: Tests
+        run: |
+          npm ci
+          npm test
+
+      - name: Nur Laufzeit-Abhängigkeiten fürs Bundle
+        run: |
+          rm -rf node_modules
+          npm ci --omit=dev
+
+      - name: Audit der Laufzeit-Abhängigkeiten
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Bundle packen und SHA-256 bilden
+        run: |
+          file="januaport-admin-${VERSION}.mcpb"
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" validate manifest.json
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" pack . "$file"
+          sha="$(sha256sum "$file" | cut -d' ' -f1)"
+          echo "SHA-256 ${file}: ${sha}"
+          echo "BUNDLE=${file}" >> "$GITHUB_ENV"
+          echo "BUNDLE_SHA256=${sha}" >> "$GITHUB_ENV"
+
+      - name: Herkunfts-Attestation
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: claude-desktop-admin/${{ env.BUNDLE }}
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<EOF
+          MCP-Bundle „JanuaPort Admin" ${VERSION} für Claude Desktop (Windows, macOS).
+
+          SHA-256 \`${BUNDLE}\`: \`${BUNDLE_SHA256}\`
+
+          Der SHA-256 prüft die Übertragung, nicht die Herkunft: Wer dieses Release ändern
+          kann, ändert auch diese Notiz. Die Herkunft belegt die Attestation:
+          \`gh attestation verify ${BUNDLE} --repo ${GITHUB_REPOSITORY}\`
+
+          Das Bundle ist nicht signiert. Anleitung: claude-desktop-admin/README.md
+          EOF
+          gh release create "$GITHUB_REF_NAME" "$BUNDLE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "JanuaPort Admin ${VERSION}" \
+            --notes-file notes.md \
+            --verify-tag

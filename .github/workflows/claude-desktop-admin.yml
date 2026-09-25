@@ -1,0 +1,48 @@
+# CI für das MCP-Bundle „JanuaPort Admin" (claude-desktop-admin/,
+# JanuaPort/januaport#888): Abhängigkeiten aus dem Lockfile, Audit der
+# Laufzeit-Abhängigkeiten als roter Schritt, Tests, und ein Probe-Pack.
+name: claude-desktop-admin
+
+on:
+  push:
+    paths:
+      - 'claude-desktop-admin/**'
+      - '.github/workflows/claude-desktop-admin.yml'
+  pull_request:
+    paths:
+      - 'claude-desktop-admin/**'
+      - '.github/workflows/claude-desktop-admin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claude-desktop-admin
+    env:
+      MCPB_VERSION: 2.1.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Abhängigkeiten aus dem Lockfile
+        run: npm ci
+
+      - name: Audit der Laufzeit-Abhängigkeiten
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Tests
+        run: npm test
+
+      - name: Manifest prüfen und Probe-Pack
+        run: |
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" validate manifest.json
+          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" pack . probe.mcpb
+          sha256sum probe.mcpb
