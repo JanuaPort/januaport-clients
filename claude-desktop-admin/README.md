@@ -56,7 +56,7 @@ kann. Deshalb gilt:
 - **Ein eigener Token je Installation**, also je Rechner und Person. Nur so lässt
   sich eine einzelne Installation widerrufen, ohne alle anderen mitzutreffen, und
   nur so ist im Audit erkennbar, von wo ein Aufruf kam.
-- **Mit Ablaufdatum**, empfohlen höchstens 90 Tage. Ein Token ohne Ablauf ist
+- **Mit Ablaufdatum**, empfohlen 30 Tage (`--expires 720h`). Ein Token ohne Ablauf ist
   für diesen Weg nicht vorgesehen.
 - **Nie denselben Token** für Claude Desktop und den ChatGPT-Tunnel („JanuaPort
   Admin" in ChatGPT) oder einen anderen Zugang verwenden.
@@ -64,7 +64,7 @@ kann. Deshalb gilt:
 Auf der Anlage (Zugriff auf das Binary und die Datenbank):
 
 ```bash
-jnpt admin-token create --label claude-desktop-<name> --expires 2160h
+jnpt admin-token create --label claude-desktop-<name> --expires 720h
 ```
 
 Der Token erscheint genau einmal. Kopieren Sie ihn direkt in das Feld in Claude
@@ -138,7 +138,7 @@ sie an, im MCP-Log von Claude Desktop steht sie auch.
 | Unter dieser Adresse gibt es keinen Admin-MCP | Die Anlage antwortet 404, meist die öffentliche Adresse | Die Adresse im lokalen Netz nehmen |
 | Das Zertifikat der Anlage stammt nicht von einer bekannten CA | Interne CA, aber keine CA-Datei eingetragen | Wurzel-CA der Anlage als Datei hinterlegen |
 | Das Zertifikat der Anlage passt nicht zur hinterlegten CA-Datei | Falsche Datei, z. B. von einer anderen Anlage oder das Serverzertifikat | Die `root.crt` genau dieser Anlage hinterlegen |
-| Die CA-Datei … ist nicht lesbar | Datei verschoben, gelöscht oder ohne Leserecht | Datei erneut auswählen |
+| CA-Datei … ist nicht lesbar | Datei verschoben, gelöscht oder ohne Leserecht; die Brücke startet dann nicht (kein Rückfall auf die System-CAs) | Datei in den Einstellungen der Erweiterung neu auswählen |
 | Die Anlage antwortet mit einer Umleitung | Die Adresse leitet weiter (z. B. auf einen anderen Host) | Die Adresse eintragen, unter der die Anlage direkt antwortet |
 
 Einen Rat, die Zertifikatsprüfung abzuschalten, gibt es hier nicht. Die Brücke

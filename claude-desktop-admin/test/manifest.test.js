@@ -89,7 +89,7 @@ test('Token-Ablauf: überall --expires 720h', () => {
     readFileSync(join(root, 'README.md'), 'utf8'),
     readFileSync(join(root, 'server', 'bridge.js'), 'utf8'),
   ];
-  const values = texts.flatMap((t) => [...t.matchAll(/--expires (\S+)/g)].map((m) => m[1]))
+  const values = texts.flatMap((t) => [...t.matchAll(/--expires ([^\s"`.,)]+)/g)].map((m) => m[1]))
     .filter((v) => v !== '…');
   assert.ok(values.length >= 3, `zu wenige Fundstellen: ${values}`);
   assert.deepEqual([...new Set(values)], ['720h']);

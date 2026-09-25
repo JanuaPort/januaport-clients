@@ -71,12 +71,9 @@ function causes(err) {
   return chain;
 }
 
-function certMessage(code, { caFile, caReadable }) {
+function certMessage(code, { caFile }) {
   if (code === 'ERR_TLS_CERT_ALTNAME_INVALID') {
     return 'Das Zertifikat der Anlage gilt nicht für diesen Hostnamen. Tragen Sie die Adresse so ein, wie sie im Zertifikat steht. / Certificate does not match the host name.';
-  }
-  if (caFile && !caReadable) {
-    return `Die CA-Datei ${caFile} ist nicht lesbar; das Zertifikat der Anlage lässt sich deshalb nicht prüfen. Hinterlegen Sie die Wurzel-CA der Anlage (PEM) erneut. / CA file ${caFile} is not readable.`;
   }
   if (caFile) {
     return `Das Zertifikat der Anlage passt nicht zur hinterlegten CA-Datei ${caFile}. Hinterlegen Sie die Wurzel-CA dieser Anlage (bei Caddy mit tls internal: root.crt der lokalen CA). / Certificate does not match the configured CA file.`;

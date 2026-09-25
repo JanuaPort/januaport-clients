@@ -27,7 +27,12 @@ function configure() {
     const endpoint = parseAddress(process.env.JNPT_ADMIN_ADDRESS);
     const headers = authHeaders(token);
     const caFile = caFileFromEnv(process.env.NODE_EXTRA_CA_CERTS);
-    return { endpoint, headers, ctx: { caFile, caReadable: caFile ? readable(caFile) : false, token } };
+    // K2 fail closed: Node würde eine unlesbare Datei nur mit einer Warnung
+    // übergehen und mit den System-CAs weiterlaufen.
+    if (caFile && !readable(caFile)) {
+      throw new Error(`CA-Datei ${caFile} ist nicht lesbar — Datei in den Einstellungen der Erweiterung neu auswählen. / CA file ${caFile} is not readable.`);
+    }
+    return { endpoint, headers, ctx: { caFile, token } };
   } catch (err) {
     log(err.message);
     process.exit(2);
@@ -35,7 +40,6 @@ function configure() {
 }
 
 const { endpoint, headers, ctx } = configure();
-if (ctx.caFile && !ctx.caReadable) log(`CA-Datei ${ctx.caFile} ist nicht lesbar; es gelten nur die System-CAs.`);
 
 // Kein authProvider: ein 401 bleibt ein 401 und kippt nie in einen OAuth-Fluss (K1).
 const upstream = new StreamableHTTPClientTransport(new URL(endpoint), {
