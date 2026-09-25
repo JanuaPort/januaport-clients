@@ -82,6 +82,19 @@ test('package.json: nur das SDK als Laufzeit-Abhängigkeit, exakt gepinnt', () =
   assert.match(deps['@modelcontextprotocol/sdk'], /^\d+\.\d+\.\d+$/);
 });
 
+// Ein Ablaufwert überall: Manifest, README und die 401-Meldung der Brücke.
+test('Token-Ablauf: überall --expires 720h', () => {
+  const texts = [
+    JSON.stringify(manifest),
+    readFileSync(join(root, 'README.md'), 'utf8'),
+    readFileSync(join(root, 'server', 'bridge.js'), 'utf8'),
+  ];
+  const values = texts.flatMap((t) => [...t.matchAll(/--expires (\S+)/g)].map((m) => m[1]))
+    .filter((v) => v !== '…');
+  assert.ok(values.length >= 3, `zu wenige Fundstellen: ${values}`);
+  assert.deepEqual([...new Set(values)], ['720h']);
+});
+
 test('package-lock.json ist eingecheckt', () => {
   assert.ok(existsSync(join(root, 'package-lock.json')));
 });

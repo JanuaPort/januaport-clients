@@ -72,14 +72,8 @@ const errorCases = [
   {
     name: 'Zertifikat mit CA-Datei → nennt die Datei',
     err: tlsError('SELF_SIGNED_CERT_IN_CHAIN'),
-    ctx: { caFile: '/pfad/root.crt', caReadable: true },
+    ctx: { caFile: '/pfad/root.crt' },
     want: [/passt nicht zur hinterlegten CA-Datei/, /\/pfad\/root\.crt/],
-  },
-  {
-    name: 'Zertifikat, CA-Datei unlesbar → nennt die Datei',
-    err: tlsError('UNABLE_TO_GET_ISSUER_CERT_LOCALLY'),
-    ctx: { caFile: '/pfad/fehlt.crt', caReadable: false },
-    want: [/nicht lesbar/, /\/pfad\/fehlt\.crt/],
   },
   {
     name: 'Hostname passt nicht zum Zertifikat',

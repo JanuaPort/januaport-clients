@@ -67,7 +67,6 @@ test('passende CA: initialize und tools/list laufen durch, Bearer kommt an', asy
 const certCases = [
   { name: 'ohne CA-Datei', ca: () => undefined, want: [/Zertifikat/, /CA-Datei/] },
   { name: 'falsche CA-Datei', ca: () => pki.wrongCaFile, want: [/passt nicht zur hinterlegten CA-Datei/, () => pki.wrongCaFile] },
-  { name: 'fehlende CA-Datei (fail closed)', ca: () => join(pki.dir, 'gibt-es-nicht.crt'), want: [/nicht lesbar/, () => join(pki.dir, 'gibt-es-nicht.crt')] },
 ];
 
 for (const c of certCases) {
@@ -88,6 +87,24 @@ for (const c of certCases) {
     });
   });
 }
+
+// K2 fail closed: Eine eingetragene, aber unlesbare CA-Datei verweigert den
+// Start; kein Rückfall auf die System-CAs, keine Anfrage an die Anlage.
+test('fehlende CA-Datei: Start verweigert, Meldung nennt die Datei', async () => {
+  await withGateway({}, async (gw) => {
+    const missing = join(pki.dir, 'gibt-es-nicht.crt');
+    const run = await runBridge(
+      { JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: missing },
+      [initialize],
+    );
+    assert.equal(run.exitCode, 2);
+    assert.ok(run.stderr.includes(`CA-Datei ${missing} ist nicht lesbar`), run.stderr);
+    assert.match(run.stderr, /Einstellungen der Erweiterung neu auswählen/);
+    assert.equal(run.responses.size, 0);
+    assert.equal(gw.requests.length, 0, 'keine Anfrage darf den Server erreichen');
+    assertNoLeak(run, token);
+  });
+});
 
 test('401: falscher Token ergibt die Token-Meldung', async () => {
   await withGateway({}, async (gw) => {
