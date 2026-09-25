@@ -45,13 +45,13 @@ jobs:
 
       - name: Tests
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm test
 
       - name: Nur Laufzeit-Abhängigkeiten fürs Bundle
         run: |
           rm -rf node_modules
-          npm ci --omit=dev
+          npm ci --omit=dev --ignore-scripts
 
       - name: Audit der Laufzeit-Abhängigkeiten
         run: npm audit --omit=dev --audit-level=high
