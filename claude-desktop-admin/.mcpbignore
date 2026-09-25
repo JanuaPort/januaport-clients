@@ -1,0 +1,6 @@
+test/
+*.mcpb
+.gitignore
+.mcpbignore
+README.md
+package-lock.json
