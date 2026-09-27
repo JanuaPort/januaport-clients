@@ -42,9 +42,10 @@ geschrieben ist.
   `https://<host>/mcp` wird App-ID-URI; Entra verlangt dafür je nach
   Mandanten-Richtlinie eine **verifizierte Domäne** des Mandanten (siehe
   Grenzen).
-- Für ChatGPT die Rückruf-Adresse aus dem Verbindungsdialog
-  (`https://chatgpt.com/connector/oauth/<id>`, siehe Schritt 3). Sie lässt sich
-  auch später ergänzen.
+- Für ChatGPT eine Rückruf-Adresse der Form
+  `https://chatgpt.com/connector/oauth/<id>`. Der Verbindungsdialog nennt sie
+  nicht mehr (Stand 25.09.2026); wie man sie erfährt, steht in
+  Schritt 3. Sie lässt sich auch später ergänzen.
 
 ## Schritte
 
@@ -99,28 +100,37 @@ liest claude.ai selbst aus der Discovery der Anlage
 `https://claude.ai/api/mcp/auth_callback` (fest, im Skript-Aufruf oben
 enthalten).
 
-*ChatGPT* (Verbindung über einen Tunnel, *Erweiterte OAuth-Einstellungen →
-Benutzerdefinierter OAuth-Client*):
+*ChatGPT* (Stand 25.09.2026: *Plugins → Hinzufügen → MCP-App erstellen* →
+Verbindung über einen Tunnel → Authentifizierung **OAuth** → *Erweiterte
+OAuth-Einstellungen*). Der Dialog ist reduziert: Client-ID, Client-Geheimnis,
+Autorisierungs-URL, Token-URL und Scopes. Die übrigen Zeilen der Tabelle stammen
+aus dem früheren Dialog; zeigt ChatGPT ein solches Feld, gilt der Wert.
 
 | Feld | Wert |
 |---|---|
-| OAuth-Client-ID | Anwendungs-ID des **Clients** — nicht die der Ressource |
-| OAuth-Client-Geheimnis | leer (öffentlicher Client, PKCE) |
+| Client-ID (früher „OAuth-Client-ID") | Anwendungs-ID des **Clients** — nicht die der Ressource |
+| Client-Geheimnis | leer (öffentlicher Client, PKCE) |
 | Authentifizierung am Token-Endpunkt | `none` |
 | Basis-URL des Autorisierungsservers | `https://login.microsoftonline.com/<verzeichnis-id>/v2.0` |
-| Autorisierungs-Endpunkt | `https://login.microsoftonline.com/<verzeichnis-id>/oauth2/v2.0/authorize` |
-| Token-Endpunkt | `https://login.microsoftonline.com/<verzeichnis-id>/oauth2/v2.0/token` |
+| Autorisierungs-URL (früher „Autorisierungs-Endpunkt") | `https://login.microsoftonline.com/<verzeichnis-id>/oauth2/v2.0/authorize` |
+| Token-URL (früher „Token-Endpunkt") | `https://login.microsoftonline.com/<verzeichnis-id>/oauth2/v2.0/token` |
 | Registrierungs-URL | leer (Entra kennt keine dynamische Client-Registrierung) |
-| Basis-Scopes | zwei Einträge: `api://<anwendungs-id-der-ressource>/access` und `offline_access` (keine Leerzeichen-Liste) |
+| Scopes (früher „Basis-Scopes") | zwei Einträge: `api://<anwendungs-id-der-ressource>/access` und `offline_access` — je Scope eine Zeile oder kommagetrennt, keine Leerzeichen-Liste |
 | Ressource | die volle Adresse: `https://<host>/mcp` bzw. `https://<host>/mcp/v/<sicht>` |
 | OIDC-Erkennung | aus |
 
-Nach dem Anlegen zeigt der Dialog die Rückruf-Adresse
-`https://chatgpt.com/connector/oauth/<id>`. Sie gehört an die
-**Client**-Registrierung (*Authentifizierung → Mobile Geräte und
-Desktopcomputer*), **vor** der ersten Anmeldung — die Liste ergänzen, nie
-ersetzen. Der Dialog ist danach nicht mehr editierbar: ein falscher Wert heißt
-neue Verbindung anlegen, alte trennen.
+**Rückruf-Adresse:** Der Dialog nennt sie nicht mehr. Sie hat die Form
+`https://chatgpt.com/connector/oauth/<id>` und gehört **vor** der ersten
+Anmeldung an die **Client**-Registrierung (*Authentication (Preview) →
+Umleitungs-URI hinzufügen → Mobilgerät- und Desktopanwendungen*; die
+vorgeschlagenen URIs nicht ankreuzen, die eigene URI ins Feld darunter) — die
+Liste ergänzen, nie ersetzen. Die Kennung hat sich in unseren Beobachtungen
+zwischen Workspaces am selben Tunnel nicht unterschieden; eine Aussage von
+OpenAI dazu ist nicht bekannt. Wer sie noch nicht kennt, verbindet einmal: Die
+`AADSTS50011`-Meldung nennt die fehlende Adresse wörtlich, und sie ist
+maßgeblich. Dann diese Adresse ergänzen und die Anmeldung wiederholen. Der
+Dialog ist nach dem Anlegen nicht mehr editierbar: ein falscher Wert heißt neue
+Verbindung anlegen, alte trennen.
 
 **4. Freigabe in JanuaPort:** Nach der ersten Anmeldung erscheint der Nutzer in
 der Oberfläche als gesehene Identität und wird dort aktiviert (oder seine Gruppe
@@ -169,9 +179,9 @@ zwei Stunden nach.
 |---|---|
 | `AADSTS90009`, Verbindung stirbt nach 60–90 min | Client und Ressource sind dieselbe Registrierung — im Client-Dialog steht die Ressourcen-ID |
 | `AADSTS50011` | Rückruf-URI fehlt an der Client-Registrierung (bzw. Oberfläche: an der Ressource) |
-| `AADSTS7000218` | Rückruf-URI unter „Web" statt „Mobile Geräte und Desktopcomputer" |
+| `AADSTS7000218` | Rückruf-URI unter „Web" statt „Mobilgerät- und Desktopanwendungen" |
 | `AADSTS9010010` | Adresse nicht als App-ID-URI der Ressource eingetragen |
-| `AADSTS900144` | Client sendet keinen Scope (Basis-Scopes leer) |
+| `AADSTS900144` | Client sendet keinen Scope (Scopes leer) |
 | Login gelingt, JanuaPort antwortet 401 | Token-Version 1 an der Ressource, oder Issuer/Audience in der `.env` falsch |
 
 ## Grenzen
