@@ -5,7 +5,7 @@ per Streamable HTTP auf `/mcp`, mit einem eigenen `jnpt_…`-Token im
 `Authorization`-Header.
 
 **Stand: ungetestet.** Diese Anleitung folgt der Gemini-CLI-Dokumentation
-(Stand 31.10.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er
+(Stand 30.10.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er
 vorliegt, steht hier Datum und Version.
 
 ## Voraussetzungen
@@ -74,4 +74,4 @@ Admin-GUI auf der Audit-Seite oder per `jnpt audit list`
 
 ## Stand
 
-- **Ungetestet** (31.10.2026): Bearer-Token und OAuth/SSO.
+- **Ungetestet** (30.10.2026): Bearer-Token und OAuth/SSO.
