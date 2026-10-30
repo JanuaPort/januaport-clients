@@ -12,7 +12,7 @@ gegen JanuaPort 0.89.0. OAuth/SSO ist **ungetestet**. Einzelheiten unter
 
 - Codex CLI.
 - Die MCP-Adresse der Anlage, z. B. `https://<ihre-anlage>/mcp`, oder eine
-  Sicht: `https://<ihre-anlage>/mcp/v/<name>`.
+  Sicht: `https://<ihre-anlage>/mcp/v/<name>` (mit diesem Client ungetestet).
 - Ein **eigener Tool-Token** für diesen Zugang, ausgestellt vom Admin
   (Admin-GUI → Tokens, `jnpt token create` oder Admin-MCP). Er zählt als
   eigene Lizenz-Einheit. Ein sprechendes Label (`codex-<name>`) macht ihn im
@@ -37,7 +37,7 @@ In `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.januaport]
-url = "https://<ihre-anlage>/mcp"          # oder eine Sicht: https://<ihre-anlage>/mcp/v/<name>
+url = "https://<ihre-anlage>/mcp"          # eine Sicht (/mcp/v/<name>) ist mit Codex ungetestet
 bearer_token_env_var = "JANUAPORT_TOKEN"   # Codex liest das Token aus dieser Umgebungsvariable
 ```
 

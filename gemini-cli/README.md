@@ -12,7 +12,7 @@ vorliegt, steht hier Datum und Version.
 
 - Gemini CLI.
 - Die MCP-Adresse der Anlage, z. B. `https://<ihre-anlage>/mcp`, oder eine
-  Sicht: `https://<ihre-anlage>/mcp/v/<name>`.
+  Sicht: `https://<ihre-anlage>/mcp/v/<name>` (mit diesem Client ungetestet).
 - Ein **eigener Tool-Token** für diesen Zugang, ausgestellt vom Admin
   (Admin-GUI → Tokens, `jnpt token create` oder Admin-MCP). Er zählt als
   eigene Lizenz-Einheit. Ein sprechendes Label (`gemini-<name>`) macht ihn im
