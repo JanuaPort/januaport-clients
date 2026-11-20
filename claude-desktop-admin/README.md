@@ -28,7 +28,8 @@ und die Antwort zurück.
   Kommandozeilen-Argument, denn die stehen in der Prozessliste.
 - **TLS:** Die Zertifikatsprüfung ist immer an und lässt sich nicht
   ausschalten. Die System-CAs gelten; eine interne Wurzel-CA (z. B. von Caddy mit
-  `tls internal`) kommt als Datei dazu.
+  `tls internal`) kommt als Datei dazu. Mit `NODE_TLS_REJECT_UNAUTHORIZED=0`
+  in der Umgebung startet die Brücke nicht (Exit 2, vor jeder Anfrage).
 - **Keine Umleitung:** Antwortet die Anlage mit einer Umleitung, bricht die
   Brücke ab, statt den Token an eine andere Adresse zu schicken.
 - **Kein OAuth, keine Anmeldung per SSO.** Bei einem abgelehnten Token kommt
@@ -99,8 +100,14 @@ kann, ändert auch die Notiz. Die Herkunft belegt die Attestation, die der
 Release-Workflow erzeugt (GitHub CLI nötig):
 
 ```bash
-gh attestation verify januaport-admin-<version>.mcpb --repo JanuaPort/januaport-clients
+gh attestation verify januaport-admin-<version>.mcpb --repo JanuaPort/januaport-clients --source-ref refs/tags/claude-desktop-admin/v<version>
 ```
+
+`<version>` durch die gewählte Version ersetzen. Der dokumentierte
+[`--source-ref`-Schalter](https://cli.github.com/manual/gh_attestation_verify)
+prüft zusätzlich die Quell-Referenz des Release-Tags. Der Workflow prüft, dass
+dessen Commit ein Vorfahr von `origin/main` ist. Eine Attestation allein ersetzt
+keinen Schutz der Tags in den Repository-Einstellungen.
 
 Das Bundle ist **nicht signiert**. Wie Claude Desktop damit umgeht (Warnung,
 Sperre oder nichts), ist noch nicht beobachtet und wird hier nachgetragen.
@@ -134,15 +141,21 @@ sie an, im MCP-Log von Claude Desktop steht sie auch.
 | Meldung (Anfang) | Ursache | Was tun |
 |---|---|---|
 | Nur https:// ist erlaubt / Nur die Basisadresse … | Adresse mit `http://`, mit Pfad oder Query | Nur `https://host[:port]` eintragen; die Brücke startet sonst nicht |
+| Start verweigert: NODE_TLS_REJECT_UNAUTHORIZED=0 | Die Umgebung schaltet Nodes Zertifikatsprüfung ab; Exit 2 vor jeder Anfrage | Variable entfernen; bei interner CA die Wurzel-CA als Datei hinterlegen |
+| Admin-Token enthält Zeichen außerhalb von Latin-1 / Admin-Token ohne „Bearer " eintragen | Kopierfehler oder mitkopiertes Bearer-Präfix; die Brücke startet nicht | Nur den ausgegebenen Token in das Feld kopieren, ohne Präfix |
 | Admin-Token falsch oder abgelaufen | Die Anlage antwortet 401 | Neuen Token ausstellen (`jnpt admin-token create --expires …`) und eintragen |
 | Unter dieser Adresse gibt es keinen Admin-MCP | Die Anlage antwortet 404, meist die öffentliche Adresse | Die Adresse im lokalen Netz nehmen |
 | Das Zertifikat der Anlage stammt nicht von einer bekannten CA | Interne CA, aber keine CA-Datei eingetragen | Wurzel-CA der Anlage als Datei hinterlegen |
 | Das Zertifikat der Anlage passt nicht zur hinterlegten CA-Datei | Falsche Datei, z. B. von einer anderen Anlage oder das Serverzertifikat | Die `root.crt` genau dieser Anlage hinterlegen |
 | CA-Datei … ist nicht lesbar | Datei verschoben, gelöscht oder ohne Leserecht; die Brücke startet dann nicht (kein Rückfall auf die System-CAs) | Datei in den Einstellungen der Erweiterung neu auswählen |
 | Die Anlage antwortet mit einer Umleitung | Die Adresse leitet weiter (z. B. auf einen anderen Host) | Die Adresse eintragen, unter der die Anlage direkt antwortet |
+| Verbindung zur Anlage fehlgeschlagen: 502: … | Zum Beispiel ein Proxyfehler; die Antwort der Anlage wird mit geschwärztem Token ausgegeben | Den Antworttext für die Diagnose verwenden |
+| Benachrichtigung fehlgeschlagen | Eine MCP-Benachrichtigung konnte nicht zugestellt werden | Verbindung prüfen; Benachrichtigungen haben keine JSON-RPC-Antwort, die Diagnose steht im MCP-Log |
 
 Einen Rat, die Zertifikatsprüfung abzuschalten, gibt es hier nicht. Die Brücke
 kennt keinen solchen Schalter.
+Ein sauberes Beenden erzeugt keine Verbindungsfehlermeldung für den dabei
+ausgelösten Abbruch.
 
 ## Grenzen
 
@@ -162,7 +175,7 @@ kennt keinen solchen Schalter.
 
 | Was | Stand |
 |---|---|
-| Brücke, Manifest, Tests | **Gebaut.** Tabellentests mit `node:test`; die Brücke läuft dabei als eigener Prozess gegen einen lokalen HTTPS-Testserver mit zur Laufzeit erzeugter Test-CA: passende, fehlende, falsche und unlesbare CA, 401, 404, Umleitung, Token in keiner Ausgabezeile. |
+| Brücke, Manifest, Tests | **Gebaut.** Tabellentests mit `node:test`; die Brücke läuft dabei als eigener Prozess gegen einen lokalen HTTPS-Testserver mit zur Laufzeit erzeugter Test-CA: passende, fehlende, falsche und unlesbare CA, TLS-Abschaltung in der Umgebung, ungültige Token, 401, 404, 502 mit geschwärztem Antworttext, Umleitung, Benachrichtigungsfehler und sauberes Beenden; Token in keiner Ausgabezeile. |
 | Gepacktes Bundle gegen eine Anlage | **Belegt** am 25.09.2026 unter Windows gegen eine Wegwerf-Anlage in Docker (jnpt hinter Caddy mit `tls internal`), ohne Claude Desktop: `initialize`, `tools/list` und `admin_list_catalog` liefen durch, der Aufruf stand im Audit unter dem Label des Admin-Tokens. Mit falscher und ohne CA-Datei scheiterte die Verbindung mit der Zertifikatsmeldung. |
 | Ein-Klick in Claude Desktop, Windows | **Nicht belegt.** |
 | Ein-Klick in Claude Desktop, macOS | **Nicht belegt.** |
@@ -171,15 +184,32 @@ kennt keinen solchen Schalter.
 
 ## Entwickeln und bauen
 
+Die Tests brauchen Git, Bash und OpenSSL im PATH sowie Zugriff auf die
+npm-Registry für die echten Installations- und Pack-Gegenproben. Unter Windows
+kann Bash aus Git für Windows verwendet werden.
+
 ```bash
-npm ci
+npm ci --ignore-scripts
 npm test                                  # braucht openssl im PATH (Test-CA)
-npx @anthropic-ai/mcpb@2.1.2 pack . januaport-admin-dev.mcpb
+staging="$(mktemp -d)"
+cp manifest.json package.json package-lock.json .mcpbignore "$staging/"
+cp -R server "$staging/server"
+npm ci --prefix "$staging" --omit=dev --ignore-scripts
+node_modules/.bin/mcpb validate "$staging/manifest.json"
+node_modules/.bin/mcpb pack "$staging" januaport-admin-dev.mcpb
 ```
 
+Die Pack-Befehle sind für Bash (unter Windows z. B. Git Bash). Den temporären
+Ordner anschließend entfernen.
 Einzige Laufzeit-Abhängigkeit ist `@modelcontextprotocol/sdk`, exakt gepinnt.
+Das Packwerkzeug `@anthropic-ai/mcpb` ist als devDependency exakt auf 2.1.2 im
+Lockfile festgelegt. Es läuft aus `node_modules/.bin`, ohne Nachinstallation.
+Gepackt wird ausschließlich die Kopie mit frischen Produktionsabhängigkeiten;
+die devDependencies im Arbeitsordner gelangen nicht ins Bundle. Ein Test führt
+die Release-Packschritte aus und prüft den ZIP-Inhalt gegen das Lockfile.
 Ein Release entsteht über einen annotierten Tag `claude-desktop-admin/vX.Y.Z`;
-die Version muss in `manifest.json` und `package.json` gleich sein. Der
+der Tag-Commit muss ein Vorfahr von `origin/main` sein und die Version muss in
+`manifest.json` und `package.json` gleich sein. Der
 Workflow testet, baut nur mit den Laufzeit-Abhängigkeiten, prüft sie mit
 `npm audit`, packt, nennt den SHA-256 im Log und in der Release-Notiz und
 erzeugt die Attestation.
