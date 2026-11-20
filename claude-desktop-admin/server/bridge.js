@@ -1,6 +1,7 @@
 // Bausteine der Brücke: Adresse prüfen, Kopfzeile bauen, Fehler für Menschen
 // übersetzen. Kein Zustand, keine Ein- und Ausgabe; die Verdrahtung macht
 // index.js.
+import { StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const ADMIN_PATH = '/admin/mcp';
 
@@ -30,6 +31,12 @@ export function parseAddress(raw) {
 export function authHeaders(token) {
   if (typeof token !== 'string' || token.trim() === '' || /[\r\n]/.test(token)) {
     throw new Error('Admin-Token fehlt oder ist ungültig. / Admin token missing or invalid.');
+  }
+  if (/[^\u0000-\u00ff]/.test(token)) {
+    throw new Error('Admin-Token enthält Zeichen außerhalb von Latin-1. Kopieren Sie nur den ausgegebenen Token. / Admin token contains characters outside Latin-1; copy only the issued token.');
+  }
+  if (/^Bearer\s/i.test(token.trim())) {
+    throw new Error('Admin-Token ohne „Bearer " eintragen. / Enter the admin token without the "Bearer " prefix.');
   }
   return { Authorization: `Bearer ${token.trim()}` };
 }
@@ -83,7 +90,7 @@ function certMessage(code, { caFile }) {
 
 export function describeError(err, ctx = {}) {
   const chain = causes(err);
-  const status = chain.find((e) => typeof e.code === 'number')?.code;
+  const status = chain.find((e) => e instanceof StreamableHTTPError)?.code;
   if (status === 401) {
     return 'Admin-Token falsch oder abgelaufen (Admin-Tokens haben ein Ablaufdatum). Neuen Token ausstellen: jnpt admin-token create --expires 720h --label <name>. / Admin token wrong or expired.';
   }
@@ -95,6 +102,6 @@ export function describeError(err, ctx = {}) {
   if (chain.some((e) => /redirect/i.test(e.message ?? ''))) {
     return 'Die Anlage antwortet mit einer Umleitung; die Brücke folgt keiner Umleitung. Tragen Sie die Adresse ein, unter der die Anlage direkt antwortet. / The bridge does not follow redirects.';
   }
-  const detail = chain.map((e) => e.code ?? e.message).filter(Boolean).join(' / ');
+  const detail = chain.map((e) => [e.code, e.message].filter((v) => v !== undefined && v !== '').join(': ')).filter(Boolean).join(' / ');
   return redact(`Verbindung zur Anlage fehlgeschlagen: ${detail} / Connection to the installation failed.`, ctx.token);
 }

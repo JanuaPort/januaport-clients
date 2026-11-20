@@ -6,8 +6,7 @@
 # "JanuaPort KI-Clients" für ChatGPT und claude.ai).
 #
 # Anleitung, Prüfliste und Grenzen: README.md in diesem Ordner.
-# Status: siehe README.md, Abschnitt "Status" — die Graph-Aufrufe sind gegen einen
-# echten Mandanten belegt, das Skript am Stück noch nicht.
+# Status und Einschränkungen: siehe README.md, Abschnitt "Status".
 #
 # Gibt am Ende nur öffentliche Bezeichner aus (keine Geheimnisse): Verzeichnis-ID,
 # die beiden Anwendungs-IDs und die JNPT_SSO_*-Werte für die Anlage.
@@ -32,7 +31,7 @@ $uris       = @("https://$BoxHost/mcp") + ($Views | ForEach-Object { "https://$B
 $graphAppId = "00000003-0000-0000-c000-000000000000"
 $userRead   = "e1fe6dd8-ba31-4d61-89e7-88639da4683d"        # Microsoft Graph: User.Read (delegiert) — für die Ressource/Oberfläche
 $openid          = "37f7f235-527c-4136-accd-4a02d197296e"   # Microsoft Graph: openid (delegiert)
-$profile         = "14dad69e-099b-42c9-810b-d002981feec1"   # Microsoft Graph: profile (delegiert)
+$profileScopeId  = "14dad69e-099b-42c9-810b-d002981feec1"   # Microsoft Graph: profile (delegiert)
 $offlineAccess   = "7427e0e9-2fba-42fe-b0c0-848c9e6a8182"   # Microsoft Graph: offline_access (delegiert)
 
 # Die Rückruf-Adresse der OBERFLÄCHE gehört an die RESSOURCE (sie ist deren eigener
@@ -92,7 +91,7 @@ $clientApp = New-MgApplication -DisplayName $ClientDisplayName -SignInAudience "
     @{ ResourceAppId = $resourceApp.AppId; ResourceAccess = @(@{ Id = $scopeId; Type = "Scope" }) },
     @{ ResourceAppId = $graphAppId;        ResourceAccess = @(
          @{ Id = $openid;        Type = "Scope" },
-         @{ Id = $profile;       Type = "Scope" },
+         @{ Id = $profileScopeId; Type = "Scope" },
          @{ Id = $offlineAccess; Type = "Scope" }
        ) }
   )

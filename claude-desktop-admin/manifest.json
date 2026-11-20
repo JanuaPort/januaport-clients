@@ -4,7 +4,7 @@
   "display_name": "JanuaPort Admin",
   "version": "0.1.1",
   "description": "Administer a JanuaPort installation from Claude Desktop over its admin MCP, in the local network only.",
-  "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token. TLS verification is always on; an internal root CA can be added as a file. The tool list comes from the gateway itself.",
+  "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token. TLS verification is always on; an internal root CA can be added as a file. The bridge refuses to start with NODE_TLS_REJECT_UNAUTHORIZED=0 in its environment. The tool list comes from the gateway itself.",
   "author": {
     "name": "JanuaPort GmbH",
     "url": "https://januaport.ai"
@@ -39,7 +39,7 @@
     "admin_token": {
       "type": "string",
       "title": "Admin token",
-      "description": "A dedicated admin token for this installation with an expiry date: jnpt admin-token create --label claude-desktop-<name> --expires 720h",
+      "description": "A dedicated admin token for this installation, without the Bearer prefix (Latin-1 only), with an expiry date: jnpt admin-token create --label claude-desktop-<name> --expires 720h",
       "sensitive": true,
       "required": true
     },
