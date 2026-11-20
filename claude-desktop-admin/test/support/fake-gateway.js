@@ -37,9 +37,11 @@ function answer(msg) {
   }
 }
 
-// mode: 'ok' | 'status404' | 'redirect'
+// mode: 'ok' | 'status404' | 'status502' | 'notification502' | 'openGet' | 'redirect'
 export async function startFakeGateway({ key, cert, token, mode = 'ok', redirectTo }) {
   const requests = [];
+  let gotGet;
+  const getStarted = new Promise((resolve) => { gotGet = resolve; });
   const server = https.createServer({ key, cert }, async (req, res) => {
     requests.push({ method: req.method, url: req.url, authorization: req.headers.authorization });
     const body = await readBody(req);
@@ -48,13 +50,20 @@ export async function startFakeGateway({ key, cert, token, mode = 'ok', redirect
       return res.end();
     }
     if (mode === 'status404' || req.url !== '/admin/mcp') return json(res, 404, { error: 'not found' });
+    if (mode === 'status502') return json(res, 502, { error: `Proxy-Testfehler ${token}` });
     if (req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { error: 'unauthorized' });
     if (req.method !== 'POST') {
+      if (mode === 'openGet' && req.method === 'GET') {
+        gotGet();
+        return; // Offene GET-Anfrage wird erst vom echten Transport abgebrochen.
+      }
       res.writeHead(405, { allow: 'POST' });
       return res.end();
     }
     const msg = JSON.parse(body);
+    if (mode === 'openGet' && msg.method === 'tools/list') await getStarted;
     if (msg.id === undefined) {
+      if (mode === 'notification502') return json(res, 502, { error: `Proxy-Testfehler ${token}` });
       res.writeHead(202);
       return res.end();
     }

@@ -102,6 +102,23 @@ test('describeError schwärzt den Token in unbekannten Fehlern', () => {
   assert.ok(!msg.includes(token));
 });
 
+for (const code of [401, 404, 20]) {
+  test(`describeError: fremder numerischer Code ${code} ist kein HTTP-Status`, () => {
+    const err = Object.assign(new Error(`Diagnose ${token}`), { code });
+    const msg = describeError(new Error('Ursache', { cause: err }), { token });
+    assert.match(msg, /Diagnose/);
+    assert.ok(!msg.includes(token));
+    assert.doesNotMatch(msg, /Admin-Token falsch|keinen Admin-MCP/);
+  });
+}
+
+test('describeError: unbekannter HTTP-Status nennt Code und geschwärzten Text', () => {
+  const msg = describeError(new StreamableHTTPError(502, `Proxy-Testfehler ${token}`), { token });
+  assert.match(msg, /502/);
+  assert.match(msg, /Proxy-Testfehler/);
+  assert.ok(!msg.includes(token));
+});
+
 test('noRedirectFetch erzwingt redirect: error, auch gegen requestInit', async () => {
   let seen;
   const fake = async (_url, init) => {

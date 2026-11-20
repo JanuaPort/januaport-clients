@@ -54,12 +54,115 @@ test('passende CA: initialize und tools/list laufen durch, Bearer kommt an', asy
     assert.equal(init.result.serverInfo.name, 'fake-jnpt-admin');
     const tools = run.responses.get(2)?.result?.tools ?? [];
     assert.deepEqual(tools.map((t) => t.name), ['admin_list_catalog']);
+    assert.equal(run.exitCode, 0);
+    assert.deepEqual(run.stderr.trim().split(/\r?\n/), [
+      `[januaport-admin] bereit für ${gw.origin}/admin/mcp (CA-Datei ${pki.caFile})`,
+    ]);
     const posts = gw.requests.filter((r) => r.method === 'POST');
     assert.ok(posts.length >= 3);
     for (const r of gw.requests) {
       assert.equal(r.url, '/admin/mcp');
       assert.equal(r.authorization, `Bearer ${token}`);
     }
+    assertNoLeak(run, token);
+  });
+});
+
+test('TLS-Abschaltung in der Umgebung: Exit 2, keine Anfrage', async () => {
+  await withGateway({}, async (gw) => {
+    const run = await runBridge({
+      JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token,
+      NODE_TLS_REJECT_UNAUTHORIZED: '0',
+    }, [initialize]);
+    assert.equal(run.exitCode, 2);
+    assert.match(run.stderr, /NODE_TLS_REJECT_UNAUTHORIZED/);
+    assert.match(run.stderr, /Start verweigert.*Startup refused/);
+    assert.equal(gw.requests.length, 0);
+    assert.equal(run.responses.size, 0);
+    assertNoLeak(run, token);
+  });
+});
+
+test('sauberes Beenden mit offener GET-Anfrage: nur die Bereit-Zeile auf stderr', async () => {
+  await withGateway({ mode: 'openGet' }, async (gw) => {
+    const run = await runBridge({
+      JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+    }, [initialize, initialized, toolsList]);
+    assert.ok(run.responses.get(2)?.result);
+    assert.ok(gw.requests.some((r) => r.method === 'GET'));
+    assert.equal(run.exitCode, 0);
+    assert.deepEqual(run.stderr.trim().split(/\r?\n/), [
+      `[januaport-admin] bereit für ${gw.origin}/admin/mcp (CA-Datei ${pki.caFile})`,
+    ]);
+    assertNoLeak(run, token);
+  });
+});
+
+// Diese belegten Node-Optionen schalten die Zertifikatsprüfung NICHT ab.
+for (const option of ['--use-openssl-ca', '--insecure-http-parser']) {
+  test(`NODE_OPTIONS ${option}: unbekannte CA wird weiter abgewiesen`, async () => {
+    await withGateway({}, async (gw) => {
+      const run = await runBridge({
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_OPTIONS: option,
+      }, [initialize]);
+      assert.match(errorOf(run, 1), /Zertifikat/);
+      assert.equal(gw.requests.length, 0);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+for (const option of ['--tls-reject-unauthorized=0', '--insecure']) {
+  test(`Node weist nicht existierende Option selbst ab: ${option}`, async () => {
+    await withGateway({}, async (gw) => {
+      const run = await runBridge({
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_OPTIONS: option,
+      }, [initialize]);
+      assert.notEqual(run.exitCode, 0);
+      assert.match(run.stderr, /not allowed in NODE_OPTIONS/);
+      assert.equal(gw.requests.length, 0);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+for (const c of [
+  { name: 'außerhalb Latin-1', value: `${token}\u2026`, want: /Latin-1/ },
+  { name: 'Bearer-Präfix', value: `Bearer ${token}`, want: /ohne.*Bearer.*without/i },
+]) {
+  test(`Token beim Start abgewiesen: ${c.name}`, async () => {
+    await withGateway({}, async (gw) => {
+      const run = await runBridge({
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: c.value, NODE_EXTRA_CA_CERTS: pki.caFile,
+      }, [initialize]);
+      assert.equal(run.exitCode, 2);
+      assert.match(run.stderr, c.want);
+      assert.equal(gw.requests.length, 0);
+      assert.equal(run.responses.size, 0);
+      assertNoLeak(run, token, c.value);
+    });
+  });
+}
+
+test('502: Antworttext bleibt erhalten, reflektierter Token wird geschwärzt', async () => {
+  await withGateway({ mode: 'status502' }, async (gw) => {
+    const run = await runBridge({
+      JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+    }, [initialize]);
+    const msg = errorOf(run, 1);
+    assert.match(msg, /502/);
+    assert.match(msg, /Proxy-Testfehler/);
+    assertNoLeak(run, token);
+  });
+});
+
+test('fehlgeschlagene Benachrichtigung: Diagnose ohne Token auf stderr', async () => {
+  await withGateway({ mode: 'notification502' }, async (gw) => {
+    const run = await runBridge({
+      JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+    }, [initialize, initialized, toolsList]);
+    assert.ok(run.responses.get(2)?.result);
+    assert.match(run.stderr, /Benachrichtigung.*Proxy-Testfehler/);
     assertNoLeak(run, token);
   });
 });
