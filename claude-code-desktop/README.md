@@ -9,8 +9,9 @@ Tunnel auch nicht.
 Claude Desktop ist ein anderer Fall, siehe [Grenzen](#grenzen).
 
 **Status:** siehe [unten](#status). Kurz: Claude Code mit Bearer-Token ist
-gegen eine echte Anlage belegt, auf beiden Wegen (`claude mcp add` und
-`.mcp.json`). Der Skill und Claude Desktop sind es nicht.
+gegen eine echte Anlage belegt, mit `.mcp.json` und historisch auch mit
+`claude mcp add`. Diese Anleitung verwendet die Platzhalter-Datei. Der Skill
+und Claude Desktop sind es nicht.
 
 ## Voraussetzungen
 
