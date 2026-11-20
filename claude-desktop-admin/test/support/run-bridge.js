@@ -37,7 +37,8 @@ export async function runBridge(env, messages, { timeoutMs = 15000 } = {}) {
       }
     }
   });
-  const exited = new Promise((resolve) => child.on('exit', (code) => resolve(code)));
+  // close folgt auf exit und das Leeren beider Ausgabeströme.
+  const exited = new Promise((resolve) => child.on('close', (code) => resolve(code)));
 
   const deadline = setTimeout(() => child.kill(), timeoutMs);
   try {

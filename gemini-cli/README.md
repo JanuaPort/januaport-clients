@@ -5,7 +5,7 @@ per Streamable HTTP auf `/mcp`, mit einem eigenen `jnpt_…`-Token im
 `Authorization`-Header.
 
 **Stand: ungetestet.** Diese Anleitung folgt der Gemini-CLI-Dokumentation
-(Stand 30.10.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er
+(Stand 20.11.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er
 vorliegt, steht hier Datum und Version.
 
 ## Voraussetzungen
@@ -26,20 +26,10 @@ Wichtig: `httpUrl` ist Streamable HTTP, `url` meint bei Gemini CLI SSE.
 JanuaPort spricht Streamable HTTP, also `httpUrl`. Den Servernamen ohne
 Unterstrich wählen.
 
-Per Kommando (Scope `user` = nur für Sie):
-
-```bash
-gemini mcp add --scope user --transport http \
-  --header "Authorization: Bearer $JANUAPORT_TOKEN" \
-  januaport https://<ihre-anlage>/mcp
-```
-
-Hier setzt die Shell den Wert ein, und Gemini CLI legt den Token im Klartext
-in `~/.gemini/settings.json` ab. Diese Datei gehört nie in ein Repo. Ob Gemini
-CLI Umgebungsvariablen auch in `headers` einsetzt, sagt die Doku nicht; bis zum
-Beleg steht deshalb hier kein `$VAR` in der Datei.
-
-Der Eintrag in `~/.gemini/settings.json` sieht dann so aus:
+Tragen Sie in `~/.gemini/settings.json` einen Platzhalter ein. Gemini CLI
+löst Umgebungsvariablen in String-Werten beim Laden der Einstellungen auf,
+auch in `headers` ([offizielle Konfigurationsdokumentation](https://github.com/google-gemini/gemini-cli/blob/d4cb1713fd7fc30f1c03f9ca7cbfed341c97dffd/docs/reference/configuration.md#settings-files),
+abgeglichen am 20.11.2026). Gegen JanuaPort bleibt dieser Weg **ungetestet**.
 
 ```json
 {
@@ -47,12 +37,36 @@ Der Eintrag in `~/.gemini/settings.json` sieht dann so aus:
     "januaport": {
       "httpUrl": "https://<ihre-anlage>/mcp",
       "headers": {
-        "Authorization": "Bearer jnpt_<id>_<secret>"
+        "Authorization": "Bearer ${JANUAPORT_TOKEN}"
       }
     }
   }
 }
 ```
+
+Lesen Sie den Token verdeckt ein und starten Sie Gemini aus derselben Shell.
+Die Variable gilt nur für diese Sitzung und ihre Kindprozesse. Der Token wird
+so weder als Kommandozeilen-Argument noch als eingegebener Wert in der
+Shell-Historie abgelegt.
+
+```bash
+read -r -s -p 'JanuaPort-Token: ' JANUAPORT_TOKEN; printf '\n'
+export JANUAPORT_TOKEN
+gemini
+unset JANUAPORT_TOKEN
+```
+
+PowerShell 7.1 oder neuer:
+
+```powershell
+$env:JANUAPORT_TOKEN = Read-Host 'JanuaPort-Token' -MaskInput
+try { gemini } finally { Remove-Item Env:JANUAPORT_TOKEN }
+```
+
+Die Datei enthält nur den Platzhalter. Umgebungsvariablen können von Prozessen
+mit ausreichenden Rechten gelesen werden. Der Weg über `gemini mcp add
+--header` würde den Token in Prozessargumente und im Klartext in die
+Konfigurationsdatei schreiben.
 
 ## 2. Anmeldung
 
@@ -74,4 +88,4 @@ Admin-GUI auf der Audit-Seite oder per `jnpt audit list`
 
 ## Stand
 
-- **Ungetestet** (30.10.2026): Bearer-Token und OAuth/SSO.
+- **Ungetestet** (20.11.2026): Bearer-Token und OAuth/SSO.

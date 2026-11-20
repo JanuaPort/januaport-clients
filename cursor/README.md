@@ -4,7 +4,7 @@ Cursor verbindet sich **von Ihrem Rechner aus** mit JanuaPort: per HTTP auf
 `/mcp`, mit einem eigenen `jnpt_…`-Token im `Authorization`-Header.
 
 **Stand: ungetestet.** Diese Anleitung folgt der Cursor-Dokumentation (Stand
-30.10.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er vorliegt,
+20.11.2026), ein Beleg gegen JanuaPort steht noch aus. Sobald er vorliegt,
 steht hier Datum und Cursor-Version.
 
 ## Voraussetzungen
@@ -25,11 +25,14 @@ Der Token steht nicht in der Datei, sondern in einer Umgebungsvariable, die
 Cursor beim Start sieht:
 
 ```bash
-export JANUAPORT_TOKEN="jnpt_<id>_<secret>"
+read -r -s -p 'JanuaPort-Token: ' JANUAPORT_TOKEN; printf '\n'
+export JANUAPORT_TOKEN
 ```
 
+PowerShell 7.1 oder neuer:
+
 ```powershell
-[Environment]::SetEnvironmentVariable("JANUAPORT_TOKEN", "jnpt_<id>_<secret>", "User")
+$env:JANUAPORT_TOKEN = Read-Host 'JanuaPort-Token' -MaskInput
 ```
 
 Nur für Sie: `~/.cursor/mcp.json`. Für ein Projekt: `.cursor/mcp.json` im
@@ -48,7 +51,16 @@ Projektordner (die Datei enthält dann keinen Token und darf ins Repo).
 }
 ```
 
-Cursor setzt `${env:NAME}` in `url` und `headers` ein.
+Cursor setzt `${env:NAME}` in `url` und `headers` ein
+([offizielle Dokumentation](https://cursor.com/docs/context/mcp#config-interpolation)).
+Cursor vollständig beenden und aus derselben Shell mit `cursor .` starten;
+eine bereits laufende Instanz übernimmt die neue Umgebung unter Umständen
+nicht. Nach dem Start `unset JANUAPORT_TOKEN` (Bash) bzw.
+`Remove-Item Env:JANUAPORT_TOKEN` (PowerShell) ausführen. Die Eingabe setzt die
+Variable nur für die aktuelle Sitzung und deren Kindprozesse; der eingegebene
+Token steht nicht in der Shell-Historie oder dauerhaft in der Benutzerumgebung.
+Umgebungsvariablen können von Prozessen mit ausreichenden Rechten gelesen werden.
+Der Start und die Auflösung gegen JanuaPort bleiben **ungetestet**.
 
 ## 2. Anmeldung
 
@@ -68,4 +80,4 @@ Admin-GUI auf der Audit-Seite oder per `jnpt audit list`
 
 ## Stand
 
-- **Ungetestet** (30.10.2026): Bearer-Token und OAuth/SSO.
+- **Ungetestet** (20.11.2026): Bearer-Token und OAuth/SSO.

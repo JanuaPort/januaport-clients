@@ -9,8 +9,9 @@ Tunnel auch nicht.
 Claude Desktop ist ein anderer Fall, siehe [Grenzen](#grenzen).
 
 **Status:** siehe [unten](#status). Kurz: Claude Code mit Bearer-Token ist
-gegen eine echte Anlage belegt, auf beiden Wegen (`claude mcp add` und
-`.mcp.json`). Der Skill und Claude Desktop sind es nicht.
+gegen eine echte Anlage belegt, mit `.mcp.json` und historisch auch mit
+`claude mcp add`. Diese Anleitung verwendet die Platzhalter-Datei. Der Skill
+und Claude Desktop sind es nicht.
 
 ## Voraussetzungen
 
@@ -32,31 +33,23 @@ gegen eine echte Anlage belegt, auf beiden Wegen (`claude mcp add` und
 
 ### 1. Token in eine Umgebungsvariable
 
-Der Token gehört nicht in eine Datei, die ins Versionsrepo wandert. Setzen Sie
-ihn in der Shell, aus der Sie Claude Code starten:
+Lesen Sie den Token verdeckt in die aktuelle Shell ein. Die Variable gilt nur
+für diese Sitzung und die daraus gestarteten Prozesse.
 
 ```bash
 export JNPT_MCP_URL="https://<ihr-gateway>/mcp"
-export JNPT_TOKEN="jnpt_<id>_<secret>"
+read -r -s -p 'JanuaPort-Token: ' JNPT_TOKEN; printf '\n'
+export JNPT_TOKEN
 ```
+
+PowerShell 7.1 oder neuer:
 
 ```powershell
 $env:JNPT_MCP_URL = "https://<ihr-gateway>/mcp"
-$env:JNPT_TOKEN   = "jnpt_<id>_<secret>"
+$env:JNPT_TOKEN = Read-Host 'JanuaPort-Token' -MaskInput
 ```
 
-### 2a. Nur für Sie: `claude mcp add`
-
-```bash
-claude mcp add --transport http januaport "$JNPT_MCP_URL" \
-  --header "Authorization: Bearer $JNPT_TOKEN"
-```
-
-Hier setzt die Shell den Wert ein, und Claude Code legt ihn in Ihrer lokalen
-Konfiguration ab (`~/.claude.json`, Scope `local`). Mit `--scope user` gilt der
-Eintrag in allen Projekten.
-
-### 2b. Für ein Team-Projekt: `.mcp.json`
+### 2. Konfiguration mit Platzhaltern: `.mcp.json`
 
 [`mcp.json.beispiel`](mcp.json.beispiel) als `.mcp.json` ins Projekt legen.
 Die Datei enthält **nur Platzhalter**, Claude Code setzt `${JNPT_MCP_URL}` und
@@ -76,6 +69,18 @@ werden, und jede Person bringt ihren eigenen Token mit.
   }
 }
 ```
+
+Claude Code aus derselben Shell mit `claude` starten. Nach dem Beenden mit
+`unset JNPT_TOKEN` (Bash) bzw. `Remove-Item Env:JNPT_TOKEN` (PowerShell) die
+Variable entfernen. Umgebungsvariablen sind kein Geheimnisspeicher; andere
+Prozesse mit ausreichenden Rechten können sie lesen.
+
+Die [Claude-Code-Dokumentation](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json)
+beschreibt die Auflösung in `url` und `headers`. Der frühere Weg über
+`claude mcp add --header` setzt den Token in die Prozessargumente und speichert
+ihn im Klartext in `~/.claude.json`; deshalb verwendet diese Anleitung die
+Platzhalter-Datei. Die verdeckte Eingabe oben schreibt den Token weder als
+eingegebenen Wert in die Shell-Historie noch in die Prozessargumente.
 
 ### 3. Für den Bauer: der Skill
 
@@ -103,15 +108,17 @@ usw.). Hinzu kommen die Werkzeuge für den Vorgang selbst.
    beim nächsten Aufruf, Claude Code liest `tools/list` beim nächsten Start
    bzw. über `/mcp` neu.
 
-Fehlerbilder:
+Fehlerbilder (HTTP-Antworten laut Gateway-Code aus JanuaPort/januaport#1493;
+die Darstellung von 404/405 in Claude Code ist **ungetestet**):
 
 | Bild | Ursache |
 |---|---|
 | `401`, Kopfzeile `WWW-Authenticate: Bearer error="invalid_token"` | Token falsch, abgelaufen oder widerrufen. Den Grund nennt die Anlage bewusst nicht |
 | `401` ohne `error=` | kein Token angekommen: Variable leer, Header-Name falsch oder `Bearer ` fehlt |
 | Claude Code bietet einen Browser-Login an | kein `Authorization`-Header konfiguriert. Claude Code folgt dann der OAuth-Discovery der Anlage (bei aktivem SSO) |
-| Verbindung hängt oder läuft in einen Timeout | Anlage von diesem Rechner aus nicht erreichbar (Netz, VPN, Tailnet), oder die Adresse endet auf `/mcp/` |
-| `405` | falscher Pfad oder ein Client im alten SSE-Modus. JanuaPort spricht nur Streamable HTTP und nur `POST` |
+| Verbindung hängt oder läuft in einen Timeout | Anlage von diesem Rechner aus nicht erreichbar (Netz, VPN, Tailnet) |
+| `404` | Adresse endet auf `/mcp/` oder falscher Pfad; über die öffentliche Adresse auch jeder nicht freigegebene Pfad |
+| `405` | andere Methode als `POST` auf dem richtigen Pfad, etwa ein Client im alten SSE-Modus; erst nach bestandener Anmeldung, sonst `401` |
 
 ## Grenzen
 
@@ -139,7 +146,7 @@ Fehlerbilder:
 
 | Weg | Stand |
 |---|---|
-| Claude Code, Bearer-Token, `claude mcp add` | **belegt am 23.09.2026**: `claude mcp get` meldet „Connected" |
+| Claude Code, Bearer-Token, früherer Weg mit `claude mcp add` | **belegt am 23.09.2026**: `claude mcp get` meldet „Connected" |
 | Claude Code, `.mcp.json` mit Umgebungsvariablen | **belegt am 23.09.2026**: `tools/list`, `ping` und ein Lesewerkzeug einer Integration |
 | Skill `januaport-bauer` | **ungetestet** |
 | Claude Desktop, eigener Konnektor | siehe claude.ai-Weg |

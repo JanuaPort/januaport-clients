@@ -23,17 +23,15 @@ jobs:
     defaults:
       run:
         working-directory: claude-desktop-admin
-    env:
-      MCPB_VERSION: 2.1.2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
 
       - name: Abhängigkeiten aus dem Lockfile
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Audit der Laufzeit-Abhängigkeiten
         run: npm audit --omit=dev --audit-level=high
@@ -43,6 +41,11 @@ jobs:
 
       - name: Manifest prüfen und Probe-Pack
         run: |
-          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" validate manifest.json
-          npx --yes "@anthropic-ai/mcpb@${MCPB_VERSION}" pack . probe.mcpb
+          staging="$RUNNER_TEMP/januaport-admin-bundle"
+          mkdir -p "$staging"
+          cp manifest.json package.json package-lock.json .mcpbignore "$staging/"
+          cp -R server "$staging/server"
+          npm ci --prefix "$staging" --omit=dev --ignore-scripts
+          node_modules/.bin/mcpb validate "$staging/manifest.json"
+          node_modules/.bin/mcpb pack "$staging" probe.mcpb
           sha256sum probe.mcpb

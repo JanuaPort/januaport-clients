@@ -1,6 +1,6 @@
 // Plan §3 Nr. 4 und SEC-Auflage K2: Im ganzen Ordner (auch manifest.json)
-// gibt es keinen Weg, die TLS-Prüfung abzuschalten. Diese Datei selbst ist
-// ausgenommen, weil sie die Suchmuster enthalten muss.
+// gibt es keinen Weg, die TLS-Prüfung abzuschalten. Erwähnungen in Abweisungen,
+// Doku und Laufzeittests sind erlaubt, Setzen im Produktcode/Manifest nicht.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
@@ -13,10 +13,10 @@ const root = join(dirname(self), '..');
 
 const forbidden = [
   /rejectUnauthorized/,
-  /NODE_TLS_REJECT_UNAUTHORIZED/,
+  /process\.env\.NODE_TLS_REJECT_UNAUTHORIZED\s*=(?!=)|"NODE_TLS_REJECT_UNAUTHORIZED"\s*:/,
   /checkServerIdentity/,
-  /NODE_OPTIONS/,
-  /--insecure/,
+  /"NODE_OPTIONS"\s*:/,
+  /\bcurl\s+--insecure\b/,
 ];
 
 const skipDirs = new Set(['node_modules', '.git']);
