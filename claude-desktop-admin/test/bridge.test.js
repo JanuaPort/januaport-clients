@@ -83,8 +83,9 @@ test('TLS-Abschaltung in der Umgebung: Exit 2, keine Anfrage', async () => {
   });
 });
 
-test('sauberes Beenden mit offener GET-Anfrage: nur die Bereit-Zeile auf stderr', async () => {
-  await withGateway({ mode: 'openGet' }, async (gw) => {
+for (const mode of ['openGet', 'openSse']) {
+test(`sauberes Beenden mit ${mode}: nur die Bereit-Zeile auf stderr`, async () => {
+  await withGateway({ mode }, async (gw) => {
     const run = await runBridge({
       JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
     }, [initialize, initialized, toolsList]);
@@ -97,6 +98,7 @@ test('sauberes Beenden mit offener GET-Anfrage: nur die Bereit-Zeile auf stderr'
     assertNoLeak(run, token);
   });
 });
+}
 
 // Diese belegten Node-Optionen schalten die Zertifikatsprüfung NICHT ab.
 for (const option of ['--use-openssl-ca', '--insecure-http-parser']) {
@@ -128,7 +130,10 @@ for (const option of ['--tls-reject-unauthorized=0', '--insecure']) {
 
 for (const c of [
   { name: 'außerhalb Latin-1', value: `${token}\u2026`, want: /Latin-1/ },
+  { name: 'außerhalb Latin-1 auch am Rand', value: `${token}\u2003`, want: /Latin-1/ },
   { name: 'Bearer-Präfix', value: `Bearer ${token}`, want: /ohne.*Bearer.*without/i },
+  { name: 'Bearer-Präfix mit Leerraum und anderer Schreibweise', value: `  bEaReR ${token}  `, want: /ohne.*Bearer.*without/i },
+  { name: 'Zeilenumbruch am Rand', value: `${token}\n`, want: /Admin-Token.*Admin token/ },
 ]) {
   test(`Token beim Start abgewiesen: ${c.name}`, async () => {
     await withGateway({}, async (gw) => {
