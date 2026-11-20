@@ -119,8 +119,9 @@ test('Release-Herkunft: echte Git-Historie akzeptiert main-Vorfahren und verweig
   try {
     git(dir, 'init', '-b', 'main', 'origin');
     const origin = join(dir, 'origin');
+    let sequence = 0;
     const commit = () => git(origin, '-c', 'user.name=Test', '-c', 'user.email=test@example.org',
-      'commit', '--allow-empty', '-m', 'Test');
+      'commit', '--allow-empty', '-m', `Test ${++sequence}`);
     commit();
     const ancestor = git(origin, 'rev-parse', 'HEAD');
     commit();
