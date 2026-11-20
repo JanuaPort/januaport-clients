@@ -106,8 +106,11 @@ gh attestation verify januaport-admin-<version>.mcpb --repo JanuaPort/januaport-
 `<version>` durch die gewählte Version ersetzen. Der dokumentierte
 [`--source-ref`-Schalter](https://cli.github.com/manual/gh_attestation_verify)
 prüft zusätzlich die Quell-Referenz des Release-Tags. Der Workflow prüft, dass
-dessen Commit ein Vorfahr von `origin/main` ist. Eine Attestation allein ersetzt
-keinen Schutz der Tags in den Repository-Einstellungen.
+dessen Commit ein Vorfahr von `origin/main` ist. Diese Prüfung steht im Workflow
+des getaggten Commits selbst: Sie fängt Versehen ab, aber kein Konto mit
+Schreibrecht, das den Workflow ändern kann. Dagegen schützen nur der Schutz der
+Tags und der Schutz von `main` in den Repository-Einstellungen; eine Attestation
+allein ersetzt beides nicht.
 
 Das Bundle ist **nicht signiert**. Wie Claude Desktop damit umgeht (Warnung,
 Sperre oder nichts), ist noch nicht beobachtet und wird hier nachgetragen.
@@ -208,7 +211,8 @@ Gepackt wird ausschließlich die Kopie mit frischen Produktionsabhängigkeiten;
 die devDependencies im Arbeitsordner gelangen nicht ins Bundle. Ein Test führt
 die Release-Packschritte aus und prüft den ZIP-Inhalt gegen das Lockfile.
 Ein Release entsteht über einen annotierten Tag `claude-desktop-admin/vX.Y.Z`;
-der Tag-Commit muss ein Vorfahr von `origin/main` sein und die Version muss in
+der Tag-Commit muss ein Vorfahr von `origin/main` sein (Schutz gegen Versehen,
+nicht gegen ein Konto mit Schreibrecht, siehe Abschnitt 1) und die Version muss in
 `manifest.json` und `package.json` gleich sein. Der
 Workflow testet, baut nur mit den Laufzeit-Abhängigkeiten, prüft sie mit
 `npm audit`, packt, nennt den SHA-256 im Log und in der Release-Notiz und
