@@ -23,6 +23,7 @@ export function spawnNode(args, env) {
 export async function runBridge(env, messages, { timeoutMs = 15000, nodeArgs = [], lateCaFile } = {}) {
   const bootstrap = `
     import assert from 'node:assert/strict';
+    import { X509Certificate } from 'node:crypto';
     import tls from 'node:tls';
     import { pathToFileURL } from 'node:url';
     assert.equal(process.env.NODE_EXTRA_CA_CERTS, undefined);
@@ -31,8 +32,11 @@ export async function runBridge(env, messages, { timeoutMs = 15000, nodeArgs = [
     process.env.NODE_EXTRA_CA_CERTS = ${JSON.stringify(lateCaFile)};
     await import(pathToFileURL(${JSON.stringify(entry)}).href);
     if (defaults && tls.setDefaultCACertificates) {
-      const current = new Set(tls.getCACertificates('default'));
-      assert.ok(defaults.every(cert => current.has(cert)), 'bisherige Standard-CAs fehlen');
+      // OpenSSL normalisiert beim Setzen die PEM-Darstellung (u. a. Newlines).
+      // Zertifikatsidentität statt Bytegleichheit der PEM-Strings prüfen.
+      const fingerprint = cert => new X509Certificate(cert).fingerprint256;
+      const current = new Set(tls.getCACertificates('default').map(fingerprint));
+      assert.ok(defaults.every(cert => current.has(fingerprint(cert))), 'bisherige Standard-CAs fehlen');
     }
   `;
   const args = lateCaFile === undefined ? [entry] : ['--input-type=module', '-e', bootstrap];

@@ -3,7 +3,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import tls from 'node:tls';
 import { createTestPki } from './support/pki.js';
 import { startFakeGateway } from './support/fake-gateway.js';
@@ -170,7 +170,6 @@ test('CA erst nach Node-Start: eingebautes fetch nutzt ergänzte Standard-CAs', 
   await withGateway({}, async (gw) => {
     // Zwei Zertifikate in einer Datei: beide müssen ergänzbar sein. Der zweite
     // Eintrag signiert das Gateway; der erste darf nicht allein verwendet werden.
-    const { readFileSync } = await import('node:fs');
     const bundle = join(pki.dir, 'ca-bundle.crt');
     writeFileSync(bundle, readFileSync(pki.wrongCaFile, 'utf8') + readFileSync(pki.caFile, 'utf8'));
     const run = await runBridge({ JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token },
@@ -341,6 +340,10 @@ test('401: falscher Token ergibt die Token-Meldung', async () => {
       [initialize],
     );
     const msg = errorOf(run, 1);
+    // Auch mit einer OAuth-Discovery-Challenge bleibt der echte SDK-Adapter
+    // bei dieser einen Anfrage; keine Metadatenabfrage und kein OAuth-Fluss.
+    assert.equal(gw.requests.length, 1);
+    assert.equal(gw.requests[0].url, '/admin/mcp');
     assert.match(msg, /Admin-Token falsch oder abgelaufen/);
     assert.match(msg, /jnpt admin-token create --expires/);
     assertNoLeak(run, token, wrongToken);

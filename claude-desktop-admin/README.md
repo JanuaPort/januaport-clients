@@ -15,8 +15,9 @@ belegt; der Ein-Klick in Claude Desktop ist noch nicht belegt.
 
 ## Wie es funktioniert
 
-Claude Desktop startet das Bundle als lokalen Prozess mit dem Node.js, das es
-selbst mitbringt. Eine kleine Brücke reicht jede MCP-Nachricht unverändert an
+Claude Desktop startet das Bundle als lokalen Node.js-Prozess. Welche
+Node-Laufzeit es dafür tatsächlich verwendet, ist noch nicht belegt; das
+Manifest verlangt Node >=20. Eine kleine Brücke reicht jede MCP-Nachricht unverändert an
 `<Adresse>/admin/mcp` weiter (Streamable HTTP, `Authorization: Bearer <Token>`)
 und die Antwort zurück.
 
@@ -27,14 +28,73 @@ und die Antwort zurück.
   Brücke geht der Token nur über eine Umgebungsvariable, nie als
   Kommandozeilen-Argument, denn die stehen in der Prozessliste.
 - **TLS:** Die Zertifikatsprüfung ist immer an und lässt sich nicht
-  ausschalten. Die System-CAs gelten; eine interne Wurzel-CA (z. B. von Caddy mit
-  `tls internal`) kommt als Datei dazu. Mit `NODE_TLS_REJECT_UNAUTHORIZED=0`
-  in der Umgebung startet die Brücke nicht (Exit 2, vor jeder Anfrage).
+  ausschalten (K2: fail closed). Nodes bisherige Standard-CAs gelten; eine interne
+  Wurzel-CA (z. B. von Caddy mit `tls internal`) kommt als Datei dazu. Mit
+  `NODE_TLS_REJECT_UNAUTHORIZED=0`, einer unlesbaren CA-Datei oder einer Datei
+  ohne PEM-Zertifikat startet die Brücke nicht (Exit 2, vor jeder Anfrage).
+  Ab Node 22.19 in der 22.x-Reihe und 24.5 in der 24.x-Reihe liest die Brücke
+  die Datei selbst und ergänzt die bisherigen Standard-CAs im Code. Auf älteren
+  Nodes bleibt die Wirkung von `NODE_EXTRA_CA_CERTS` beim Node-Start abhängig.
+- **Direkte Verbindung:** Mit `NODE_USE_ENV_PROXY=1` oder `--use-env-proxy`
+  in `NODE_OPTIONS` oder den Node-Startargumenten startet die Brücke nicht
+  (Exit 2, vor jeder Anfrage). Diese Einschaltwege entfernen und den Prozess neu
+  starten. `HTTPS_PROXY` allein aktiviert Nodes Env-Proxy nicht.
 - **Keine Umleitung:** Antwortet die Anlage mit einer Umleitung, bricht die
   Brücke ab, statt den Token an eine andere Adresse zu schicken.
 - **Kein OAuth, keine Anmeldung per SSO.** Bei einem abgelehnten Token kommt
-  eine klare Meldung, kein Anmeldefenster.
-- **Logs** landen nur im MCP-Log von Claude Desktop, nie mit dem Token.
+  eine klare Meldung, kein Anmeldefenster (K1: ein 401 bleibt ein 401).
+- **Logs** gehen nur auf stderr ins MCP-Log von Claude Desktop, nie mit dem
+  Token. stdout gehört allein dem JSON-RPC-Strom.
+
+### Node-Laufzeit: Proxy und zusätzliche CAs
+
+Die offiziellen CLI- und TLS-Dokumentationen der beiden Node-Reihen nennen:
+
+| Funktion | Node 22.x ab | Node 24.x ab |
+|---|---|---|
+| `NODE_USE_ENV_PROXY=1` | 22.21.0 | 24.0.0 |
+| `--use-env-proxy` (auch in `NODE_OPTIONS`) | 22.21.0 | 24.5.0 |
+| `tls.getCACertificates()` | 22.15.0 | 24.0.0 (eingeführt in 23.10.0, zurückportiert nach 22.15.0) |
+| `tls.setDefaultCACertificates()` | 22.19.0 | 24.5.0 |
+
+Quellen: CLI [22.x](https://nodejs.org/docs/latest-v22.x/api/cli.html#node_use_env_proxy1)
+und [24.x](https://nodejs.org/docs/latest-v24.x/api/cli.html#node_use_env_proxy1),
+CLI-Schalter [22.x](https://nodejs.org/docs/latest-v22.x/api/cli.html#--use-env-proxy)
+und [24.x](https://nodejs.org/docs/latest-v24.x/api/cli.html#--use-env-proxy),
+TLS [22.x](https://nodejs.org/docs/latest-v22.x/api/tls.html#tlssetdefaultcacertificatescerts)
+und [24.x](https://nodejs.org/docs/latest-v24.x/api/tls.html#tlssetdefaultcacertificatescerts),
+CA-Abfrage [22.x](https://nodejs.org/docs/latest-v22.x/api/tls.html#tlsgetcacertificatestype)
+und [24.x](https://nodejs.org/docs/latest-v24.x/api/tls.html#tlsgetcacertificatestype).
+
+Als Einschaltwert der Umgebungsvariable ist ausschließlich `1` dokumentiert.
+Die Brücke prüft genau diesen Wert und das dokumentierte Flag; die laut
+[CLI-Optionssyntax](https://nodejs.org/docs/latest-v24.x/api/cli.html#options)
+gleichwertige Unterstrich-Schreibweise zählt ebenfalls. `NODE_OPTIONS` wird als
+Optionsliste mit doppelten Anführungszeichen gelesen; ein Flag-Text innerhalb
+eines Optionswerts zählt nicht als Schalter. Die Behandlung maskierter Zeichen
+entspricht Nodes
+[`ParseNodeOptionsEnvVar`](https://github.com/nodejs/node/blob/v24.5.0/src/node_options.cc).
+Node liest die Proxy-Umgebung laut CLI-Doku **beim Prozessstart**. Deshalb
+verweigert die Brücke den Start bei diesen Einschaltwegen, statt die Variablen
+nachträglich zu ändern. Auf älteren Nodes wird `NODE_USE_ENV_PROXY=1` ebenfalls
+abgewiesen; ein dort unbekanntes CLI-Flag weist Node bereits selbst ab.
+
+Auch [`NODE_EXTRA_CA_CERTS`](https://nodejs.org/docs/latest-v24.x/api/cli.html#node_extra_ca_certsfile)
+wird von Node nur beim Start gelesen. Sind beide TLS-APIs verfügbar, ergänzt
+die Brücke vor der ersten Verbindung `tls.getCACertificates('default')` um
+alle PEM-Zertifikate der Datei und setzt sie mit `tls.setDefaultCACertificates()`.
+Die bisherigen Standard-CAs bleiben erhalten. Ohne beide APIs bleibt es beim
+bisherigen Startzeit-Weg. Lesbarkeit und mindestens ein vollständiger
+PEM-Zertifikatsblock werden auf beiden Wegen geprüft.
+
+Das eingebaute [`fetch`](https://nodejs.org/docs/latest-v24.x/api/globals.html#fetch)
+basiert auf undici. Dass es die im Code ergänzten Standard-CAs nutzt, belegt
+`test/bridge.test.js` am echten SDK-Adapter gegen ein HTTPS-Fake-Gateway mit
+Test-CA: Der Kindprozess startet ohne `NODE_EXTRA_CA_CERTS`, prüft die leere
+Extra-CA-Liste und setzt erst danach den CA-Pfad für die Brücke. `initialize`
+und `tools/list` gelingen; mit falscher CA scheitert TLS vor jeder HTTP-Anfrage.
+Es gibt dafür keine zusätzliche Laufzeit-Abhängigkeit und keinen eigenen
+Agent oder Dispatcher.
 
 ## Voraussetzungen
 
@@ -145,12 +205,14 @@ sie an, im MCP-Log von Claude Desktop steht sie auch.
 |---|---|---|
 | Nur https:// ist erlaubt / Nur die Basisadresse … | Adresse mit `http://`, mit Pfad oder Query | Nur `https://host[:port]` eintragen; die Brücke startet sonst nicht |
 | Start verweigert: NODE_TLS_REJECT_UNAUTHORIZED=0 | Die Umgebung schaltet Nodes Zertifikatsprüfung ab; Exit 2 vor jeder Anfrage | Variable entfernen; bei interner CA die Wurzel-CA als Datei hinterlegen |
+| Start verweigert: Env-Proxy aktiviert | `NODE_USE_ENV_PROXY=1` oder `--use-env-proxy` in `NODE_OPTIONS` oder den Node-Startargumenten; Exit 2 vor jeder Anfrage | Variable und Flag entfernen, Prozess neu starten und Anlage direkt erreichen |
 | Admin-Token enthält Zeichen außerhalb von Latin-1 / Admin-Token ohne „Bearer " eintragen | Kopierfehler oder mitkopiertes Bearer-Präfix; die Brücke startet nicht | Nur den ausgegebenen Token in das Feld kopieren, ohne Präfix |
 | Admin-Token falsch oder abgelaufen | Die Anlage antwortet 401 | Neuen Token ausstellen (`jnpt admin-token create --expires …`) und eintragen |
 | Unter dieser Adresse gibt es keinen Admin-MCP | Die Anlage antwortet 404, meist die öffentliche Adresse | Die Adresse im lokalen Netz nehmen |
 | Das Zertifikat der Anlage stammt nicht von einer bekannten CA | Interne CA, aber keine CA-Datei eingetragen | Wurzel-CA der Anlage als Datei hinterlegen |
 | Das Zertifikat der Anlage passt nicht zur hinterlegten CA-Datei | Falsche Datei, z. B. von einer anderen Anlage oder das Serverzertifikat | Die `root.crt` genau dieser Anlage hinterlegen |
-| CA-Datei … ist nicht lesbar | Datei verschoben, gelöscht oder ohne Leserecht; die Brücke startet dann nicht (kein Rückfall auf die System-CAs) | Datei in den Einstellungen der Erweiterung neu auswählen |
+| CA-Datei … ist nicht lesbar | Datei verschoben, gelöscht oder ohne Leserecht; die Brücke startet dann nicht (kein Rückfall auf die bisherigen Standard-CAs) | Datei in den Einstellungen der Erweiterung neu auswählen |
+| CA-Datei … enthält kein PEM-Zertifikat | Lesbare Datei ohne vollständigen PEM-Zertifikatsblock; Exit 2 vor jeder Anfrage | Die Wurzel-CA als PEM-Datei hinterlegen (`-----BEGIN CERTIFICATE-----` bis `-----END CERTIFICATE-----`) |
 | Die Anlage antwortet mit einer Umleitung | Die Adresse leitet weiter (z. B. auf einen anderen Host) | Die Adresse eintragen, unter der die Anlage direkt antwortet |
 | Verbindung zur Anlage fehlgeschlagen: 502: … | Zum Beispiel ein Proxyfehler; die Antwort der Anlage wird mit geschwärztem Token ausgegeben | Den Antworttext für die Diagnose verwenden |
 | Benachrichtigung fehlgeschlagen | Eine MCP-Benachrichtigung konnte nicht zugestellt werden | Verbindung prüfen; Benachrichtigungen haben keine JSON-RPC-Antwort, die Diagnose steht im MCP-Log |
@@ -178,7 +240,7 @@ ausgelösten Abbruch.
 
 | Was | Stand |
 |---|---|
-| Brücke, Manifest, Tests | **Gebaut.** Tabellentests mit `node:test`; die Brücke läuft dabei als eigener Prozess gegen einen lokalen HTTPS-Testserver mit zur Laufzeit erzeugter Test-CA: passende, fehlende, falsche und unlesbare CA, TLS-Abschaltung in der Umgebung, ungültige Token, 401, 404, 502 mit geschwärztem Antworttext, Umleitung, Benachrichtigungsfehler und sauberes Beenden; Token in keiner Ausgabezeile. |
+| Brücke, Manifest, Tests | **Gebaut.** Tabellentests mit `node:test`; die Brücke läuft dabei als eigener Prozess gegen einen lokalen HTTPS-Testserver mit zur Laufzeit erzeugter Test-CA: passende, fehlende, falsche, unlesbare und PEM-lose CA, CA-Pfad erst nach Node-Start, Env-Proxy-Einschaltwege und Gegenproben, TLS-Abschaltung in der Umgebung, ungültige Token, 401, 404, 502 mit geschwärztem Antworttext, Umleitung, Benachrichtigungsfehler und sauberes Beenden; Token in keiner Ausgabezeile. |
 | Gepacktes Bundle gegen eine Anlage | **Belegt** am 25.09.2026 unter Windows gegen eine Wegwerf-Anlage in Docker (jnpt hinter Caddy mit `tls internal`), ohne Claude Desktop: `initialize`, `tools/list` und `admin_list_catalog` liefen durch, der Aufruf stand im Audit unter dem Label des Admin-Tokens. Mit falscher und ohne CA-Datei scheiterte die Verbindung mit der Zertifikatsmeldung. |
 | Ein-Klick in Claude Desktop, Windows | **Nicht belegt.** |
 | Ein-Klick in Claude Desktop, macOS | **Nicht belegt.** |

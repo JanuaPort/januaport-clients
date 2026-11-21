@@ -2,7 +2,8 @@
 // JanuaPort Admin für Claude Desktop: reicht MCP-Nachrichten 1:1 von stdio an
 // <Adresse>/admin/mcp (Streamable HTTP, Bearer-Admin-Token) durch und zurück.
 // stdout gehört allein dem JSON-RPC-Strom; Logs gehen auf stderr, nie mit Token.
-import { accessSync, constants } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import tls from 'node:tls';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { parseAddress, authHeaders, caFileFromEnv, describeError, noRedirectFetch, redact } from './bridge.js';
@@ -14,13 +15,30 @@ function log(line) {
   process.stderr.write(`[januaport-admin] ${redact(line, token)}\n`);
 }
 
-function readable(file) {
-  try {
-    accessSync(file, constants.R_OK);
-    return true;
-  } catch {
-    return false;
+// NODE_OPTIONS ist laut Node-CLI-Doku eine durch Leerzeichen getrennte Liste
+// mit doppelten Quotes. Backslash maskiert innerhalb der Quotes das Folgezeichen
+// (Node: src/node_options.cc, ParseNodeOptionsEnvVar). Keine Teilstring-Suche:
+// Ein Optionswert wie --title="text --use-env-proxy text" ist kein Proxy-Flag.
+function nodeOptions(text = '') {
+  const args = [];
+  let quoted = false;
+  let arg = '';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '\\' && quoted) arg += text[++i] ?? '';
+    else if (c === '"') quoted = !quoted;
+    else if (c === ' ' && !quoted) {
+      if (arg) args.push(arg);
+      arg = '';
+    } else arg += c;
   }
+  if (arg) args.push(arg);
+  return args;
+}
+
+function isEnvProxyFlag(arg) {
+  // Die Node-CLI erlaubt für alle Optionen auch Unterstriche statt Bindestrichen.
+  return arg.replaceAll('_', '-') === '--use-env-proxy';
 }
 
 function configure() {
@@ -30,13 +48,37 @@ function configure() {
     if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') {
       throw new Error('Start verweigert: NODE_TLS_REJECT_UNAUTHORIZED=0 schaltet die Zertifikatsprüfung ab. Entfernen Sie die Variable und hinterlegen Sie bei Bedarf die Wurzel-CA. / Startup refused: remove NODE_TLS_REJECT_UNAUTHORIZED=0; configure the root CA instead.');
     }
+    // Node wertet den Env-Proxy beim Prozessstart aus. Nachträgliches Löschen
+    // der Umgebung würde den bereits konfigurierten Dispatcher nicht abschalten.
+    // Belegte Einschaltwerte und Versionsgrenzen: README, „Node-Laufzeit“.
+    if (process.env.NODE_USE_ENV_PROXY === '1' ||
+        nodeOptions(process.env.NODE_OPTIONS).some(isEnvProxyFlag) ||
+        process.execArgv.some(isEnvProxyFlag)) {
+      throw new Error('Start verweigert: Env-Proxy aktiviert; die Anlage muss direkt erreichbar sein. Entfernen Sie NODE_USE_ENV_PROXY=1 sowie --use-env-proxy aus NODE_OPTIONS und den Node-Startargumenten. / Startup refused: remove NODE_USE_ENV_PROXY=1 and --use-env-proxy from NODE_OPTIONS and Node startup arguments; connect directly to the installation.');
+    }
     const endpoint = parseAddress(process.env.JNPT_ADMIN_ADDRESS);
     const headers = authHeaders(rawToken);
     const caFile = caFileFromEnv(process.env.NODE_EXTRA_CA_CERTS);
-    // K2 fail closed: Node würde eine unlesbare Datei nur mit einer Warnung
-    // übergehen und mit den System-CAs weiterlaufen.
-    if (caFile && !readable(caFile)) {
-      throw new Error(`CA-Datei ${caFile} ist nicht lesbar — Datei in den Einstellungen der Erweiterung neu auswählen. / CA file ${caFile} is not readable.`);
+    if (caFile) {
+      let pem;
+      try {
+        pem = readFileSync(caFile, 'utf8');
+      } catch {
+        // K2 fail closed: Node würde eine unlesbare Datei nur mit einer Warnung
+        // übergehen und mit den bisherigen Standard-CAs weiterlaufen.
+        throw new Error(`CA-Datei ${caFile} ist nicht lesbar — Datei in den Einstellungen der Erweiterung neu auswählen. / CA file ${caFile} is not readable.`);
+      }
+      const certs = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) ?? [];
+      if (certs.length === 0) {
+        throw new Error(`CA-Datei ${caFile} enthält kein PEM-Zertifikat. Hinterlegen Sie die Wurzel-CA als PEM-Datei. / CA file ${caFile} contains no PEM certificate; configure the root CA in PEM format.`);
+      }
+      // Node >=22.19 (22.x), >=24.5 (24.x): vor der ersten TLS-Verbindung
+      // ergänzen, nicht ersetzen. Das eingebaute fetch nutzt diese Standard-CAs
+      // (Kindprozess-Test mit erst nach Node-Start gesetztem CA-Pfad).
+      // Ältere Nodes behalten den Startzeit-Weg über NODE_EXTRA_CA_CERTS.
+      if (typeof tls.setDefaultCACertificates === 'function' && typeof tls.getCACertificates === 'function') {
+        tls.setDefaultCACertificates([...tls.getCACertificates('default'), ...certs]);
+      }
     }
     return { endpoint, headers, ctx: { caFile, token } };
   } catch (err) {
