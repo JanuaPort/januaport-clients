@@ -16,6 +16,9 @@ const forbidden = [
   /process\.env\.NODE_TLS_REJECT_UNAUTHORIZED\s*=(?!=)|"NODE_TLS_REJECT_UNAUTHORIZED"\s*:/,
   /checkServerIdentity/,
   /"NODE_OPTIONS"\s*:/,
+  // Die neuen Proxy-Abweisungen dürfen NODE_OPTIONS/NODE_USE_ENV_PROXY lesen,
+  // aber nicht durch Zuweisung einen beim Node-Start aktiven Proxy kaschieren.
+  /process\.env\.(?:NODE_OPTIONS|NODE_USE_ENV_PROXY)\s*=(?!=)|"NODE_USE_ENV_PROXY"\s*:/,
   /\bcurl\s+--insecure\b/,
 ];
 
@@ -60,6 +63,8 @@ const counterSamples = [
   { name: 'checkServerIdentity', file: 'server/y.js', text: 'tls.connect({ checkServerIdentity: () => undefined })' },
   { name: 'NODE_OPTIONS', file: 'manifest.json', text: '{"env":{"NODE_OPTIONS":"--use-openssl-ca"}}' },
   { name: '--insecure in der Doku', file: 'README.md', text: 'curl --insecure https://box.local' },
+  { name: 'Proxy-Schalter überschreiben', file: 'server/proxy.js', text: "process.env.NODE_USE_ENV_PROXY = '0'" },
+  { name: 'NODE_OPTIONS überschreiben', file: 'server/proxy.js', text: "process.env.NODE_OPTIONS = ''" },
 ];
 
 for (const c of counterSamples) {
@@ -78,7 +83,7 @@ for (const c of counterSamples) {
 test('Gegenprobe: sauberer Ordner ergibt keinen Treffer', () => {
   const dir = mkdtempSync(join(tmpdir(), 'jnpt-guard-'));
   try {
-    writeFileSync(join(dir, 'ok.js'), 'const ca = process.env.NODE_EXTRA_CA_CERTS;');
+    writeFileSync(join(dir, 'ok.js'), 'const ca = process.env.NODE_EXTRA_CA_CERTS; const proxy = process.env.NODE_USE_ENV_PROXY; const options = process.env.NODE_OPTIONS;');
     assert.deepEqual(scan(dir), []);
   } finally {
     rmSync(dir, { recursive: true, force: true });

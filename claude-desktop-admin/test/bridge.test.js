@@ -3,6 +3,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import tls from 'node:tls';
 import { createTestPki } from './support/pki.js';
 import { startFakeGateway } from './support/fake-gateway.js';
 import { runBridge, spawnNode, initialize, initialized, toolsList } from './support/run-bridge.js';
@@ -79,6 +81,124 @@ test('TLS-Abschaltung in der Umgebung: Exit 2, keine Anfrage', async () => {
     assert.match(run.stderr, /Start verweigert.*Startup refused/);
     assert.equal(gw.requests.length, 0);
     assert.equal(run.responses.size, 0);
+    assertNoLeak(run, token);
+  });
+});
+
+const hasEnvProxyFlag = process.allowedNodeEnvironmentFlags.has('--use-env-proxy');
+const hasDefaultCA = typeof tls.setDefaultCACertificates === 'function' &&
+  typeof tls.getCACertificates === 'function';
+
+// Nur belegte Einschaltwege: NODE_USE_ENV_PROXY=1, CLI-Flag und seine laut
+// CLI-Doku gleichwertige Unterstrich-Schreibweise; NODE_OPTIONS erlaubt Quotes.
+for (const c of [
+  { name: 'NODE_USE_ENV_PROXY=1', env: { NODE_USE_ENV_PROXY: '1' }, hint: /NODE_USE_ENV_PROXY/ },
+  { name: 'NODE_OPTIONS --use-env-proxy', env: { NODE_OPTIONS: '--use-env-proxy' }, flag: true },
+  { name: 'NODE_OPTIONS mit Quotes', env: { NODE_OPTIONS: '--no-warnings "--use-env-proxy"' }, flag: true },
+  { name: 'NODE_OPTIONS mit Unterstrichen', env: { NODE_OPTIONS: '--use_env_proxy' }, flag: true },
+  { name: 'execArgv --use-env-proxy', args: ['--use-env-proxy'], flag: true },
+  { name: 'execArgv mit Unterstrichen', args: ['--use_env_proxy'], flag: true },
+]) {
+  test(`Env-Proxy aktiv: ${c.name}: Exit 2, keine Anfrage`, { skip: c.flag && !hasEnvProxyFlag }, async () => {
+    await withGateway({}, async (gw) => {
+      const run = await runBridge({
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+        ...c.env,
+      }, [initialize], { nodeArgs: c.args });
+      assert.equal(run.exitCode, 2, run.stderr);
+      assert.match(run.stderr, /Start verweigert.*Startup refused/);
+      assert.match(run.stderr, c.hint ?? /--use-env-proxy/);
+      assert.match(run.stderr, /Entfernen.*remove/);
+      assert.equal(run.responses.size, 0);
+      assert.equal(gw.requests.length, 0);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+for (const value of [undefined, '0', 'true', 'yes', '01', ' 1 ']) {
+  test(`HTTPS_PROXY allein, NODE_USE_ENV_PROXY=${JSON.stringify(value)}: direkte Verbindung`, async () => {
+    await withGateway({}, async (gw) => {
+      const env = {
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+        HTTPS_PROXY: 'http://127.0.0.1:1',
+      };
+      if (value !== undefined) env.NODE_USE_ENV_PROXY = value;
+      const run = await runBridge(env, [initialize, initialized, toolsList]);
+      assert.equal(run.exitCode, 0, run.stderr);
+      assert.ok(run.responses.get(2)?.result, run.stderr);
+      assert.ok(gw.requests.length >= 3);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+// Keine Teilstring-Suche in NODE_OPTIONS: Der Flag-Text als Optionswert
+// aktiviert keinen Proxy, auch mit eingebetteten, maskierten Anführungszeichen.
+for (const value of ['--title="text --use-env-proxy text"', '--title="text \\"--use-env-proxy\\" text"']) {
+  test(`Proxy-Flag nur in einem NODE_OPTIONS-Wert: ${value}`, async () => {
+    await withGateway({}, async (gw) => {
+      const run = await runBridge({
+        JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token, NODE_EXTRA_CA_CERTS: pki.caFile,
+        NODE_OPTIONS: value,
+      }, [initialize]);
+      assert.equal(run.exitCode, 0, run.stderr);
+      assert.ok(run.responses.get(1)?.result, run.stderr);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+for (const late of [false, true]) {
+  test(`CA-Datei ohne PEM: Exit 2, keine Anfrage (${late ? 'nach Node-Start' : 'beim Node-Start'})`, async () => {
+    await withGateway({}, async (gw) => {
+      const file = join(pki.dir, 'ohne-zertifikat.crt');
+      writeFileSync(file, 'lesbar, aber kein PEM-Zertifikat\n');
+      const env = { JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token };
+      if (!late) env.NODE_EXTRA_CA_CERTS = file;
+      const run = await runBridge(env, [initialize], late ? { lateCaFile: file } : {});
+      assert.equal(run.exitCode, 2, run.stderr);
+      assert.match(run.stderr, /CA-Datei.*kein.*PEM-Zertifikat.*CA file.*no.*PEM certificate/);
+      assert.equal(run.responses.size, 0);
+      assert.equal(gw.requests.length, 0);
+      assertNoLeak(run, token);
+    });
+  });
+}
+
+test('CA erst nach Node-Start: eingebautes fetch nutzt ergänzte Standard-CAs', { skip: !hasDefaultCA }, async () => {
+  await withGateway({}, async (gw) => {
+    // Zwei Zertifikate in einer Datei: beide müssen ergänzbar sein. Der zweite
+    // Eintrag signiert das Gateway; der erste darf nicht allein verwendet werden.
+    const { readFileSync } = await import('node:fs');
+    const bundle = join(pki.dir, 'ca-bundle.crt');
+    writeFileSync(bundle, readFileSync(pki.wrongCaFile, 'utf8') + readFileSync(pki.caFile, 'utf8'));
+    const run = await runBridge({ JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token },
+      [initialize, initialized, toolsList], { lateCaFile: bundle });
+    assert.equal(run.exitCode, 0, run.stderr);
+    assert.ok(run.responses.get(1)?.result, run.stderr);
+    assert.ok(run.responses.get(2)?.result, run.stderr);
+    assert.ok(gw.requests.length >= 3);
+    assertNoLeak(run, token);
+  });
+});
+
+test('CA erst nach Node-Start, ältere API: bisheriger Startzeit-Weg bleibt nötig', { skip: hasDefaultCA }, async () => {
+  await withGateway({}, async (gw) => {
+    const run = await runBridge({ JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token },
+      [initialize], { lateCaFile: pki.caFile });
+    assert.match(errorOf(run, 1), /passt nicht zur hinterlegten CA-Datei/);
+    assert.equal(gw.requests.length, 0);
+    assertNoLeak(run, token);
+  });
+});
+
+test('CA erst nach Node-Start, falsche CA: Zertifikatsmeldung, fail closed', { skip: !hasDefaultCA }, async () => {
+  await withGateway({}, async (gw) => {
+    const run = await runBridge({ JNPT_ADMIN_ADDRESS: gw.origin, JNPT_ADMIN_TOKEN: token },
+      [initialize], { lateCaFile: pki.wrongCaFile });
+    assert.match(errorOf(run, 1), /passt nicht zur hinterlegten CA-Datei/);
+    assert.equal(gw.requests.length, 0);
     assertNoLeak(run, token);
   });
 });
