@@ -1,5 +1,6 @@
 // Startet die Brücke als echten Kindprozess, wie Claude Desktop es tut:
-// NODE_EXTRA_CA_CERTS liest Node nur beim Start, deshalb nie im Testprozess.
+// NODE_EXTRA_CA_CERTS liest Node nur beim Start. lateCaFile setzt den Pfad erst
+// danach: Damit muss die Brücke selbst die CA für das eingebaute fetch ergänzen.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -19,8 +20,27 @@ export function spawnNode(args, env) {
 
 // Schickt die Nachrichten nacheinander; auf Anfragen (mit id) wird die
 // Antwort abgewartet. Liefert alle stdout-Zeilen, stderr und die Antworten.
-export async function runBridge(env, messages, { timeoutMs = 15000 } = {}) {
-  const child = spawnNode([entry], env);
+export async function runBridge(env, messages, { timeoutMs = 15000, nodeArgs = [], lateCaFile } = {}) {
+  const bootstrap = `
+    import assert from 'node:assert/strict';
+    import { X509Certificate } from 'node:crypto';
+    import tls from 'node:tls';
+    import { pathToFileURL } from 'node:url';
+    assert.equal(process.env.NODE_EXTRA_CA_CERTS, undefined);
+    const defaults = tls.getCACertificates?.('default');
+    if (defaults) assert.deepEqual(tls.getCACertificates('extra'), []);
+    process.env.NODE_EXTRA_CA_CERTS = ${JSON.stringify(lateCaFile)};
+    await import(pathToFileURL(${JSON.stringify(entry)}).href);
+    if (defaults && tls.setDefaultCACertificates) {
+      // OpenSSL normalisiert beim Setzen die PEM-Darstellung (u. a. Newlines).
+      // Zertifikatsidentität statt Bytegleichheit der PEM-Strings prüfen.
+      const fingerprint = cert => new X509Certificate(cert).fingerprint256;
+      const current = new Set(tls.getCACertificates('default').map(fingerprint));
+      assert.ok(defaults.every(cert => current.has(fingerprint(cert))), 'bisherige Standard-CAs fehlen');
+    }
+  `;
+  const args = lateCaFile === undefined ? [entry] : ['--input-type=module', '-e', bootstrap];
+  const child = spawnNode([...nodeArgs, ...args], env);
   let stdout = '';
   let stderr = '';
   const waiters = new Map();

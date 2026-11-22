@@ -4,7 +4,7 @@
   "display_name": "JanuaPort Admin",
   "version": "0.1.1",
   "description": "Administer a JanuaPort installation from Claude Desktop over its admin MCP, in the local network only.",
-  "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token. TLS verification is always on; an internal root CA can be added as a file. The bridge refuses to start with NODE_TLS_REJECT_UNAUTHORIZED=0 in its environment. The tool list comes from the gateway itself.",
+  "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token, connecting directly in the local network. TLS verification fails closed. The bridge refuses to start with NODE_TLS_REJECT_UNAUTHORIZED=0, NODE_USE_ENV_PROXY=1, --use-env-proxy in NODE_OPTIONS or Node startup arguments (including equivalent underscore spelling), or an unreadable CA file or one without a complete PEM certificate block. With the TLS APIs available from Node 22.19.0 (22.x) and 24.5.0 (24.x), it reads the CA file itself and adds its certificates to the existing default CAs before connecting. Older Nodes rely on NODE_EXTRA_CA_CERTS at process startup. HTTPS_PROXY alone does not enable Node's environment proxy. No OAuth flow: a 401 remains a 401. Logs go to stderr without the token; stdout is reserved for JSON-RPC. The tool list comes from the gateway itself.",
   "author": {
     "name": "JanuaPort GmbH",
     "url": "https://januaport.ai"

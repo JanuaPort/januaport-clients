@@ -51,7 +51,10 @@ export async function startFakeGateway({ key, cert, token, mode = 'ok', redirect
     }
     if (mode === 'status404' || req.url !== '/admin/mcp') return json(res, 404, { error: 'not found' });
     if (mode === 'status502') return json(res, 502, { error: `Proxy-Testfehler ${token}` });
-    if (req.headers.authorization !== `Bearer ${token}`) return json(res, 401, { error: 'unauthorized' });
+    if (req.headers.authorization !== `Bearer ${token}`) {
+      res.setHeader('www-authenticate', `Bearer resource_metadata="https://${req.headers.host}/.well-known/oauth-protected-resource"`);
+      return json(res, 401, { error: 'unauthorized' });
+    }
     if (req.method !== 'POST') {
       if (['openGet', 'openSse'].includes(mode) && req.method === 'GET') {
         if (mode === 'openSse') {
