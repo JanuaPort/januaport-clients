@@ -65,7 +65,7 @@ jobs:
           npm ci --prefix "$staging" --omit=dev --ignore-scripts
 
       - name: Audit der Laufzeit-Abhängigkeiten
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
 
       - name: Bundle packen und SHA-256 bilden
         run: |

@@ -34,7 +34,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Audit der Laufzeit-Abhängigkeiten
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=moderate
 
       - name: Tests
         run: npm test

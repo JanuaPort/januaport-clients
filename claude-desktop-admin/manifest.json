@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "januaport-admin",
   "display_name": "JanuaPort Admin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Administer a JanuaPort installation from Claude Desktop over its admin MCP, in the local network only.",
   "long_description": "A thin bridge from stdio to the admin MCP of a JanuaPort installation (<address>/admin/mcp, Streamable HTTP) with a bearer admin token. TLS verification is always on; an internal root CA can be added as a file. The bridge refuses to start with NODE_TLS_REJECT_UNAUTHORIZED=0 in its environment. The tool list comes from the gateway itself.",
   "author": {

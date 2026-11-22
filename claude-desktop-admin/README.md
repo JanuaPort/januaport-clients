@@ -198,6 +198,7 @@ staging="$(mktemp -d)"
 cp manifest.json package.json package-lock.json .mcpbignore "$staging/"
 cp -R server "$staging/server"
 npm ci --prefix "$staging" --omit=dev --ignore-scripts
+npm audit --omit=dev --audit-level=moderate
 node_modules/.bin/mcpb validate "$staging/manifest.json"
 node_modules/.bin/mcpb pack "$staging" januaport-admin-dev.mcpb
 ```
@@ -213,9 +214,12 @@ die Release-Packschritte aus und prüft den ZIP-Inhalt gegen das Lockfile.
 Ein Release entsteht über einen annotierten Tag `claude-desktop-admin/vX.Y.Z`;
 der Tag-Commit muss ein Vorfahr von `origin/main` sein (Schutz gegen Versehen,
 nicht gegen ein Konto mit Schreibrecht, siehe Abschnitt 1) und die Version muss in
-`manifest.json` und `package.json` gleich sein. Der
+`manifest.json`, `package.json` und beiden Wurzeleinträgen von `package-lock.json`
+gleich sein. Der
 Workflow testet, baut nur mit den Laufzeit-Abhängigkeiten, prüft sie mit
-`npm audit`, packt, nennt den SHA-256 im Log und in der Release-Notiz und
-erzeugt die Attestation.
+`npm audit --omit=dev --audit-level=moderate` und bricht bereits bei Befunden mit
+Schwere `moderate` ab. Danach packt er, nennt den SHA-256 im Log und in der
+Release-Notiz und erzeugt die Attestation. Diese Audit-Schwelle gilt auch im
+CI-Workflow (JanuaPort/januaport#1494).
 
 Hintergrund: JanuaPort/januaport#888.
