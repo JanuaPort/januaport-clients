@@ -20,6 +20,12 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 = bisherige CI-Version; 24 = Node von Claude Desktop. Proxy-Flag-
+        # und CA-im-Code-Tests laufen erst ab 22.19/22.21 bzw. 24.5 (#1494).
+        node: [22, 24]
     defaults:
       run:
         working-directory: claude-desktop-admin
@@ -28,7 +34,7 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
 
       - name: Abhängigkeiten aus dem Lockfile
         run: npm ci --ignore-scripts
