@@ -9,6 +9,7 @@ import { join, dirname } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const lock = JSON.parse(readFileSync(join(root, 'package-lock.json'), 'utf8'));
 const cfg = manifest.server.mcp_config;
 
 test('Manifest-Version 0.3, Name, Typ node, Plattformen', () => {
@@ -19,8 +20,10 @@ test('Manifest-Version 0.3, Name, Typ node, Plattformen', () => {
   assert.deepEqual([...manifest.compatibility.platforms].sort(), ['darwin', 'win32']);
 });
 
-test('Version gleich in manifest.json und package.json', () => {
+test('Version gleich in manifest.json, package.json und beiden Lockfile-Wurzeln', () => {
   assert.equal(manifest.version, pkg.version);
+  assert.equal(manifest.version, lock.version);
+  assert.equal(manifest.version, lock.packages[''].version);
 });
 
 test('entry_point existiert und ist das einzige Argument', () => {
