@@ -190,3 +190,14 @@ for (const s of ciSamples) {
     assert.equal(npmCiWithoutIgnoreScripts(s.line).length === 0, s.ok);
   });
 }
+
+// GATE-Befund zu JanuaPort/januaport#1494: Auf Node 22 aus der CI wurden die
+// Proxy-Flag- und CA-Tests übersprungen; ein Mutant überlebte. Die CI muss auch
+// den Node von Claude Desktop (24) fahren.
+test('claude-desktop-admin.yml: Testmatrix enthält Node 22 und 24', () => {
+  const text = readFileSync(join(dirname(workflow), 'claude-desktop-admin.yml'), 'utf8');
+  const m = text.match(/^\s*node:\s*\[([^\]]*)\]/m);
+  assert.ok(m, 'keine Node-Matrix gefunden');
+  assert.deepEqual(m[1].split(',').map((s) => s.trim()).sort(), ['22', '24']);
+  assert.match(text, /node-version:\s*\$\{\{\s*matrix\.node\s*\}\}/);
+});
